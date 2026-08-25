@@ -8,7 +8,7 @@ The repo validates generic rendering and integration behavior, then produces gen
 
 ## Work on the source, not generated output
 
-- Edit source under `framework/`, `modules/`, `checks/`, `tools/`, and root docs.
+- Edit source under `framework/`, `modules/`, `checks/`, and root docs.
 - Do not hand-edit generated output. Rendered files belong to build results such as `result/claude/...` and `result/opencode/...`.
 - Keep README human-focused. Use this file for contributor and agent guidance.
 
