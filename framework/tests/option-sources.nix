@@ -13,6 +13,7 @@ let
 
   mkScope = args: builders.makeScope ({ harness = harnesses.claude; } // args);
   mkOpencodeScope = args: builders.makeScope ({ harness = harnesses.opencode; } // args);
+  mkPiScope = args: builders.makeScope ({ harness = harnesses.pi; } // args);
 
   preFlightBlock = {
     heading = "Pre Flight";
@@ -117,6 +118,71 @@ let
 
   referenceRenderingOpencodeScope = mkOpencodeScope {
     sources = referenceRenderingSources;
+  };
+
+  selectorSources = optionBase // {
+    commands = {
+      "opencode-only" = {
+        description = "OpenCode-only skill";
+        content = "OpenCode-only body";
+        asSkill = {
+          opencode = true;
+        };
+      };
+      "pi-only" = {
+        description = "Pi-only skill";
+        content = "Pi-only body";
+        asSkill = {
+          pi = true;
+        };
+      };
+      "opencode-plus-pi" = {
+        description = "OpenCode and Pi skill";
+        content = "Dual-harness body";
+        asSkill = {
+          opencode = true;
+          pi = true;
+        };
+      };
+      "all-harnesses" = {
+        description = "Every-harness skill";
+        content = "All-harness body";
+        asSkill = true;
+      };
+      "pi-unavailable" = {
+        description = "Unavailable Pi skill";
+        content = "Unavailable body";
+        harnesses = [
+          "claude"
+          "opencode"
+        ];
+        asSkill = {
+          pi = true;
+        };
+      };
+      "uses-selector-references" =
+        { scope }:
+        {
+          description = "Command selector references";
+          content = "OpenCode: ${scope.commands."opencode-only".reference}; Pi: ${
+            scope.commands."pi-only".reference
+          }; Dual: ${scope.commands."opencode-plus-pi".reference}; All: ${
+            scope.commands."all-harnesses".reference
+          }.";
+        };
+    };
+  };
+
+  selectorClaudeScope = mkScope {
+    sources = selectorSources;
+  };
+
+  selectorOpencodeScope = mkOpencodeScope {
+    sources = selectorSources;
+  };
+
+  selectorPiScope = mkPiScope {
+    sources = selectorSources;
   };
 
   skillReferenceScope = mkScope {
@@ -626,6 +692,59 @@ let
           lib.hasInfix "Use the `dual-source` skill and the `command-only-source` command."
             referenceRenderingOpencodeScope.commands."uses-command-references".embed;
       detail = "expected dual-output references to select skills only for OpenCode and plain commands to stay commands";
+    }
+    {
+      name = "selector matrix creates exact companion-skill sets";
+      pass =
+        builtins.attrNames selectorClaudeScope.extraSkillsFromCommands == [
+          "skills/all-harnesses/SKILL"
+        ]
+        &&
+          builtins.attrNames selectorOpencodeScope.extraSkillsFromCommands == [
+            "skills/all-harnesses/SKILL"
+            "skills/opencode-only/SKILL"
+            "skills/opencode-plus-pi/SKILL"
+          ]
+        &&
+          builtins.attrNames selectorPiScope.extraSkillsFromCommands == [
+            "skills/all-harnesses/SKILL"
+            "skills/opencode-plus-pi/SKILL"
+            "skills/pi-only/SKILL"
+          ];
+      detail = "expected per-harness asSkill selectors to produce exact companion-skill sets";
+    }
+    {
+      name = "Pi selector matrix keeps explicit harness choices independent";
+      pass =
+        !(builtins.hasAttr "skills/opencode-only/SKILL" selectorPiScope.extraSkillsFromCommands)
+        && !(builtins.hasAttr "skills/pi-only/SKILL" selectorOpencodeScope.extraSkillsFromCommands)
+        && builtins.hasAttr "skills/opencode-plus-pi/SKILL" selectorOpencodeScope.extraSkillsFromCommands
+        && builtins.hasAttr "skills/opencode-plus-pi/SKILL" selectorPiScope.extraSkillsFromCommands
+        && builtins.hasAttr "skills/all-harnesses/SKILL" selectorClaudeScope.extraSkillsFromCommands;
+      detail = "expected OpenCode-only, Pi-only, dual, and true selectors to remain non-inheriting";
+    }
+    {
+      name = "Pi command references distinguish selected skills from commands";
+      pass =
+        lib.hasInfix "OpenCode: the `opencode-only` command;"
+          selectorPiScope.commands."uses-selector-references".embed
+        && lib.hasInfix "Pi: the `pi-only` skill;" selectorPiScope.commands."uses-selector-references".embed
+        &&
+          lib.hasInfix "Dual: the `opencode-plus-pi` skill;"
+            selectorPiScope.commands."uses-selector-references".embed
+        &&
+          lib.hasInfix "All: the `all-harnesses` skill."
+            selectorPiScope.commands."uses-selector-references".embed;
+      detail = "expected raw command references to use the active harness artifact kind";
+    }
+    {
+      name = "command harness filtering blocks an unavailable Pi skill";
+      pass =
+        !(builtins.hasAttr "pi-unavailable" selectorPiScope.commands)
+        && !(builtins.hasAttr "commands/pi-unavailable" selectorPiScope.instructions)
+        && !(builtins.hasAttr "skills/pi-unavailable/SKILL" selectorPiScope.extraSkillsFromCommands)
+        && !(builtins.hasAttr "skills/pi-unavailable/SKILL" selectorPiScope.instructions);
+      detail = "expected command availability filtering to run before Pi dual-output selection";
     }
     {
       name = "raw skill references expose name and reference";

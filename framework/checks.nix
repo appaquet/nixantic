@@ -42,13 +42,17 @@ let
     test -f ${renderedPackage}/claude/CLAUDE.md
     test -f ${renderedPackage}/claude/BOM.md
     test -f ${renderedPackage}/claude/commands/safe-command.md
+    test ! -e ${renderedPackage}/claude/skills/safe-command/SKILL.md
     test -f ${renderedPackage}/opencode/AGENTS.md
     test -f ${renderedPackage}/opencode/BOM.md
     test -f ${renderedPackage}/opencode/.gitignore
+    test -f ${renderedPackage}/opencode/commands/safe-command.md
+    test -f ${renderedPackage}/opencode/skills/safe-command/SKILL.md
     test -f ${renderedPackage}/opencode/skills/safe-skill/SKILL.md
     test -f ${renderedPackage}/opencode/skills/safe-skill/refs/example.md
     test -f ${renderedPackage}/pi/AGENTS.md
     test -f ${renderedPackage}/pi/prompts/safe-command.md
+    test -f ${renderedPackage}/pi/skills/safe-command/SKILL.md
     test -f ${renderedPackage}/pi/skills/safe-skill/SKILL.md
     test -f ${renderedPackage}/pi/skills/safe-skill/refs/example.md
 
@@ -60,6 +64,7 @@ let
     grep -F '# Rendered Package Pi' ${renderedPackage}/pi/AGENTS.md
     grep -F 'description: "Run: safely # not a YAML comment"' ${renderedPackage}/pi/prompts/safe-command.md
     grep -F 'argument-hint: "[path:with:colon]"' ${renderedPackage}/pi/prompts/safe-command.md
+    cmp ${renderedPackage}/pi/skills/safe-command/SKILL.md <(printf '%s\n' '---' 'name: "safe-command"' 'description: "Run: safely # not a YAML comment"' '---' "" 'Command body.')
     grep -F 'name: "safe-skill"' ${renderedPackage}/pi/skills/safe-skill/SKILL.md
     test ! -s ${renderedPackage}/opencode/.gitignore
     grep -F 'Bundled reference body.' ${renderedPackage}/opencode/skills/safe-skill/refs/example.md
@@ -68,7 +73,7 @@ let
     grep -F 'not provider-authoritative context billing' ${renderedPackage}/claude/BOM.md
     grep -F '| Generated instructions | 1 |' ${renderedPackage}/claude/BOM.md
     grep -F '| Commands | 1 |' ${renderedPackage}/claude/BOM.md
-    grep -F '| Skills | 1 |' ${renderedPackage}/opencode/BOM.md
+    grep -F '| Skills | 2 |' ${renderedPackage}/opencode/BOM.md
     grep -F '| Skill subfiles | 1 |' ${renderedPackage}/opencode/BOM.md
     grep -F '| skills/safe-skill/refs/example.md |' ${renderedPackage}/opencode/BOM.md
     grep -F '## Root/main instruction summary' ${renderedPackage}/claude/BOM.md

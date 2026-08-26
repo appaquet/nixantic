@@ -7,6 +7,10 @@
         "Bash(command: test)"
         "Read # docs"
       ];
+      asSkill = {
+        opencode = true;
+        pi = true;
+      };
       content = ''
         Command body.
       '';

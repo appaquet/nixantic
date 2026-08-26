@@ -44,8 +44,11 @@ let
         description = "Run demo";
         content = "Use $1 and $ARGUMENTS";
         argumentHint = "<path>";
+        asSkill = {
+          pi = true;
+        };
       };
-      skills.demo = {
+      skills.authored-demo = {
         main = {
           description = "Demo skill";
           content = "Skill body";
@@ -97,8 +100,11 @@ let
       pass =
         scope.instructions.main.outputPath == "AGENTS.md"
         && scope.commands.demo.outputPath == "prompts/demo.md"
-        && scope.skills.demo.outputPath == "skills/demo/SKILL.md"
-        && scope.skillFiles."skills/demo/refs/example.md".outputPath == "skills/demo/refs/example.md";
+        && scope.skills."authored-demo".outputPath == "skills/authored-demo/SKILL.md"
+        &&
+          scope.skillFiles."skills/authored-demo/refs/example.md".outputPath
+          == "skills/authored-demo/refs/example.md"
+        && scope.extraSkillsFromCommands."skills/demo/SKILL".outputPath == "skills/demo/SKILL.md";
       detail = "expected Pi-native destinations and merged rules in AGENTS.md";
     }
     {
@@ -109,9 +115,23 @@ let
       detail = "expected Pi prompt-template frontmatter and unchanged supported argument variables";
     }
     {
-      name = "Pi skills render the Agent Skills metadata subset";
+      name = "Pi prompt and derived skill render exact artifacts";
       pass =
-        scope.skills.demo.embed == "---\nname: \"demo\"\ndescription: \"Demo skill\"\n---\n\nSkill body";
+        scope.commands.demo.embed
+        == "---\ndescription: \"Run demo\"\nargument-hint: \"<path>\"\n---\n\nUse $1 and $ARGUMENTS"
+        &&
+          scope.extraSkillsFromCommands."skills/demo/SKILL".embed
+          == "---\nname: \"demo\"\ndescription: \"Run demo\"\n---\n\nUse $1 and $ARGUMENTS"
+        &&
+          scope.instructions."skills/demo/SKILL".embed
+          == "---\nname: \"demo\"\ndescription: \"Run demo\"\n---\n\nUse $1 and $ARGUMENTS";
+      detail = "expected exact Pi prompt and command-derived skill artifacts";
+    }
+    {
+      name = "Pi authored skills render the Agent Skills metadata subset";
+      pass =
+        scope.skills."authored-demo".embed
+        == "---\nname: \"authored-demo\"\ndescription: \"Demo skill\"\n---\n\nSkill body";
       detail = "expected name and description only, without Claude/OpenCode metadata";
     }
     {
@@ -125,7 +145,8 @@ let
           entry: entry.relativePath == "skills/demo/SKILL.md" && entry.category == "skills"
         ) bomEntries
         && builtins.any (
-          entry: entry.relativePath == "skills/demo/refs/example.md" && entry.category == "skillSubfiles"
+          entry:
+          entry.relativePath == "skills/authored-demo/refs/example.md" && entry.category == "skillSubfiles"
         ) bomEntries;
       detail = "expected common authored-path precedence and logical kinds to survive Pi-native paths";
     }
