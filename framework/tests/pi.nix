@@ -8,6 +8,9 @@ let
     harness = pi;
     settings.harnesses.pi.rules.output = "merge-main";
     sources = {
+      blocks.intro = {
+        content = "Intro line from block";
+      };
       instructions.main = {
         role = "main";
         heading = "Main";
@@ -42,12 +45,29 @@ let
       };
       commands.demo = {
         description = "Run demo";
-        content = "Use $1 and $ARGUMENTS";
-        argumentHint = "<path>";
+        content = "Goal: run the demo for $1.\n\nThe prompt keeps $1 for positional use.";
+        arguments = [ { label = "Question"; } ];
         asSkill = {
           pi = true;
         };
       };
+      commands.think = {
+        description = "Think deeply";
+        content = "Goal: reason about the problem.";
+        arguments = [
+          {
+            label = "Problem";
+            hint = "[problem or context]";
+          }
+        ];
+      };
+      commands.blocky =
+        { scope }:
+        {
+          description = "Block-led command";
+          content = "${scope.blocks.intro.body}\n\nRest of the body.";
+          arguments = [ { label = "Target"; } ];
+        };
       skills.authored-demo = {
         main = {
           description = "Demo skill";
@@ -83,6 +103,26 @@ let
       };
     }).agents.invalid.embed
   );
+  invalidArgumentLabel = builtins.tryEval (
+    (builders.makeScope {
+      harness = pi;
+      sources.commands.invalid = {
+        description = "Invalid";
+        content = "Body";
+        arguments = [ { label = ""; } ];
+      };
+    }).commands.invalid.embed
+  );
+  invalidArgumentType = builtins.tryEval (
+    (builders.makeScope {
+      harness = pi;
+      sources.commands.invalid = {
+        description = "Invalid";
+        content = "Body";
+        arguments = [ { label = 1; } ];
+      };
+    }).commands.invalid.embed
+  );
   overriddenScope = builders.makeScope {
     harness = pi;
     sources.commands.demo = {
@@ -108,24 +148,40 @@ let
       detail = "expected Pi-native destinations and merged rules in AGENTS.md";
     }
     {
-      name = "Pi prompt frontmatter preserves argument hints and Pi argument variables";
+      name = "Pi command renders declared arguments after the first content line";
       pass =
         scope.commands.demo.embed
-        == "---\ndescription: \"Run demo\"\nargument-hint: \"<path>\"\n---\n\nUse $1 and $ARGUMENTS";
-      detail = "expected Pi prompt-template frontmatter and unchanged supported argument variables";
+        ==
+          "---\ndescription: \"Run demo\"\nargument-hint: \"[question]\"\n---\n\nGoal: run the demo for $1.\nQuestion: $ARGUMENTS\n\nThe prompt keeps $1 for positional use.";
+      detail = "expected the argument line after the first content line and a derived argument hint";
     }
     {
-      name = "Pi prompt and derived skill render exact artifacts";
+      name = "Pi argument hint override renders verbatim";
       pass =
-        scope.commands.demo.embed
-        == "---\ndescription: \"Run demo\"\nargument-hint: \"<path>\"\n---\n\nUse $1 and $ARGUMENTS"
-        &&
-          scope.extraSkillsFromCommands."skills/demo/SKILL".embed
-          == "---\nname: \"demo\"\ndescription: \"Run demo\"\n---\n\nUse $1 and $ARGUMENTS"
+        scope.commands.think.embed
+        ==
+          "---\ndescription: \"Think deeply\"\nargument-hint: \"[problem or context]\"\n---\n\nGoal: reason about the problem.\nProblem: $ARGUMENTS";
+      detail = "expected the explicit per-argument hint to replace the derived one";
+    }
+    {
+      name = "Pi command argument injection runs on final block-interpolated content";
+      pass =
+        scope.commands.blocky.embed
+        ==
+          "---\ndescription: \"Block-led command\"\nargument-hint: \"[target]\"\n---\n\nIntro line from block\nTarget: $ARGUMENTS\n\nRest of the body.";
+      detail = "expected the argument line after the first line of the interpolated block content";
+    }
+    {
+      name = "Pi derived skill renders the command content verbatim";
+      pass =
+        scope.extraSkillsFromCommands."skills/demo/SKILL".embed
+        ==
+          "---\nname: \"demo\"\ndescription: \"Run demo\"\n---\n\nGoal: run the demo for $1.\n\nThe prompt keeps $1 for positional use."
         &&
           scope.instructions."skills/demo/SKILL".embed
-          == "---\nname: \"demo\"\ndescription: \"Run demo\"\n---\n\nUse $1 and $ARGUMENTS";
-      detail = "expected exact Pi prompt and command-derived skill artifacts";
+          ==
+          "---\nname: \"demo\"\ndescription: \"Run demo\"\n---\n\nGoal: run the demo for $1.\n\nThe prompt keeps $1 for positional use.";
+      detail = "expected no argument line and no argument hint in the command-derived skill";
     }
     {
       name = "Pi authored skills render the Agent Skills metadata subset";
@@ -163,6 +219,11 @@ let
       name = "tintinweb rejects unsupported policy fields";
       pass = !invalidPolicy.success && !invalidPolicyValue.success;
       detail = "expected unsupported fields and invalid values to fail instead of being silently ignored";
+    }
+    {
+      name = "Pi rejects invalid command argument labels";
+      pass = !invalidArgumentLabel.success && !invalidArgumentType.success;
+      detail = "expected empty and non-string argument labels to fail instead of rendering";
     }
   ];
 

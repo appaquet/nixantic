@@ -11,7 +11,13 @@ let
       sources.commands.demo = {
         description = "Demo command";
         content = "Body";
-        argumentHint = "[path]";
+        arguments = [
+          {
+            label = "Path";
+            hint = "[path]";
+          }
+          { label = "Target"; }
+        ];
       };
     }).commands.demo;
 
@@ -100,8 +106,9 @@ let
       name = "adapter frontmatter follows its explicit order and omits null values";
       pass =
         command.embed
-        == "---\nname: \"demo\"\ndescription: \"Demo command\"\nargument-hint: \"[path]\"\n---\n\nBody";
-      detail = "expected Claude command frontmatter in adapter-declared order without null fields";
+        ==
+          "---\nname: \"demo\"\ndescription: \"Demo command\"\nargument-hint: \"[path] [target]\"\n---\n\nBody\nPath: $ARGUMENTS\nTarget: $ARGUMENTS";
+      detail = "expected Claude command frontmatter in adapter-declared order, derived multi-argument hint, and argument lines after the first content line";
     }
     {
       name = "authored output path overrides renderer default";

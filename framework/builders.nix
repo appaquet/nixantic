@@ -7,8 +7,18 @@ let
     inherit (frontmatter) renderFrontmatter;
   };
 
+  # renderArtifact :: { harness, kind, content, ... } -> { outputPath, kind, embed, ... }
+  #   Fills artifact defaults and applies command-argument rendering before delegating
+  #   to the harness renderer. Command artifacts get one "<label>: $ARGUMENTS" line per
+  #   declared argument and a derived argument-hint value; every other kind renders
+  #   content verbatim without argument frontmatter.
   renderArtifact =
     args:
+    let
+      declaredArguments = args.arguments or [ ];
+      commandArguments =
+        if args.kind == "command" && builtins.isList declaredArguments then declaredArguments else [ ];
+    in
     artifact.renderArtifact args.harness (
       {
         role = null;
@@ -17,7 +27,8 @@ let
         model = null;
         effort = null;
         permission = null;
-        argumentHint = null;
+        arguments = null;
+        argumentsHint = null;
         metadata = null;
         context = null;
         agent = null;
@@ -30,6 +41,10 @@ let
         subPath = null;
       }
       // args
+      // {
+        content = injectCommandArgumentLines commandArguments args.content;
+        argumentsHint = deriveArgumentsHint commandArguments;
+      }
     );
 
   # mkReference :: string -> string -> string
@@ -153,7 +168,7 @@ let
     };
 
   # mkSkill :: { harness, name, description, content, kind?, outputPath?, model?, harnesses?,
-  # asCommand?, argumentHint?, metadata?, effort?, context?, agent?, allowedTools?, whenToUse?,
+  # asCommand?, arguments?, metadata?, effort?, context?, agent?, allowedTools?, whenToUse?,
   # disableModelInvocation?, userInvocable?, subtask?, ... }
   #   Skill and command definitions. Used for directory skills and internally for
   #   command↔skill dual output.
@@ -175,13 +190,14 @@ let
   #
   #   Frontmatter — skill (kind="directory"):
   #     Both harnesses:  name, description, metadata
-  #     Claude only:     model, argumentHint, effort, context, agent, allowedTools,
+  #     Claude only:     model, effort, context, agent, allowedTools,
   #                      whenToUse, disableModelInvocation, userInvocable
   #     Opencode only:   —
   #
   #   Frontmatter — command (kind="flat"):
   #     Both harnesses:  description, model, agent
-  #     Claude only:     name, argumentHint, effort, context, allowedTools
+  #     Pi, Claude, and OpenCode: argument-hint (derived from `arguments` when declared)
+  #     Claude only:     name, effort, context, allowedTools
   #     Opencode only:   subtask
   #
   #   Scope-consumed
@@ -233,7 +249,7 @@ let
       kind = if kind == "directory" then "skill" else "command";
       authoredOutputPath = args.outputPath or null;
       model = selectedModel;
-      argumentHint = optional "argumentHint";
+      arguments = optional "arguments";
       metadata = optional "metadata";
       effort = selectedEffort;
       context = optional "context";
@@ -279,7 +295,7 @@ let
       authoredOutputPath = args.outputPath or null;
     };
 
-  # mkCommand :: { harness, name, description, content, kind?, outputPath?, model?, harnesses?, asSkill?, onlyInjectBlockReferences?, argumentHint?, effort?, context?, agent?, allowedTools?, subtask?, ... }
+  # mkCommand :: { harness, name, description, content, kind?, outputPath?, model?, harnesses?, asSkill?, onlyInjectBlockReferences?, arguments?, effort?, context?, agent?, allowedTools?, subtask?, ... }
   #   Slash-command definitions. Delegates to mkSkill with kind="flat".
   #   Source: nixantic.sources.<source-owner>.commands.*, keyed by artifact key.
   #
@@ -290,6 +306,12 @@ let
   #
   #   Optional (authored)
   #     name         - Display name. Defaults to filename stem.
+  #     arguments    - Invocation argument declarations: list of attrsets { label (required,
+  #                    non-empty string), hint? (optional string) }. Command artifacts render
+  #                    one "<label>: $ARGUMENTS" line after the first non-empty content line and
+  #                    an argument-hint frontmatter entry (pi, Claude, and OpenCode) from the per-argument
+  #                    hint or [lowercased label]; skill artifacts of the same source render
+  #                    neither.
   #     model        - Attrset keyed by harness name. Each value can be:
   #                    - String: model name only
   #                    - Attrset: { model = "..."; effort = "..."; }
@@ -298,7 +320,8 @@ let
   #
   #   Frontmatter (command, kind="flat"):
   #     Both harnesses:  description, model, agent
-  #     Claude only:     name, argumentHint, effort, context, allowedTools
+  #     Pi, Claude, and OpenCode: argument-hint (derived from `arguments` when declared)
+  #     Claude only:     name, effort, context, allowedTools
   #     Opencode only:   subtask
   #
   #   Scope-consumed
@@ -317,6 +340,7 @@ let
     args:
     let
       name = args.name or (throw "mkCommand requires name");
+      arguments = validateCommandArguments (args.key or name) (args.arguments or [ ]);
     in
     mkSkill (
       {
@@ -325,7 +349,10 @@ let
       }
       // args
       // {
-        inherit name;
+        inherit
+          name
+          arguments
+          ;
       }
     );
 
@@ -422,6 +449,61 @@ let
     );
 
   renderFrontmatter = frontmatter.renderFrontmatter;
+
+  # validateCommandArguments :: string -> value -> [ { label, hint? } ]
+  #   Checks a command `arguments` declaration: a list of attrsets, each with a
+  #   non-empty string label and an optional string hint.
+  validateCommandArguments =
+    key: arguments:
+    if !builtins.isList arguments then
+      throw "Nixantic command '${key}' arguments must be a list of argument attrsets"
+    else if !builtins.all builtins.isAttrs arguments then
+      throw "Nixantic command '${key}' arguments entries must be attrsets"
+    else if
+      !builtins.all (
+        arg: builtins.hasAttr "label" arg && builtins.isString arg.label && arg.label != ""
+      ) arguments
+    then
+      throw "Nixantic command '${key}' arguments entries require a non-empty string label"
+    else if
+      !builtins.all (arg: !builtins.hasAttr "hint" arg || builtins.isString arg.hint) arguments
+    then
+      throw "Nixantic command '${key}' arguments hint must be a string"
+    else
+      arguments;
+
+  # deriveArgumentsHint :: [ { label, hint? } ] -> string | null
+  #   Joins the per-argument hint (explicit hint, or [lowercased label]) with a
+  #   space for the argument-hint frontmatter value.
+  deriveArgumentsHint =
+    arguments:
+    if arguments == [ ] then
+      null
+    else
+      builtins.concatStringsSep " " (map (arg: arg.hint or "[${lib.toLower arg.label}]") arguments);
+
+  # injectCommandArgumentLines :: [ { label } ] -> string -> string
+  #   Splices one "<label>: $ARGUMENTS" line per declared argument right after the
+  #   first non-empty content line, or at the top of the body when none exists.
+  injectCommandArgumentLines =
+    arguments: content:
+    if arguments == [ ] then
+      content
+    else
+      let
+        lines = lib.splitString "\n" content;
+        lineCount = builtins.length lines;
+        argumentLines = map (arg: "${arg.label}: $ARGUMENTS") arguments;
+        nonEmptyIndices = builtins.filter (i: lib.trim (builtins.elemAt lines i) != "") (
+          builtins.genList (i: i) lineCount
+        );
+        insertionIndex = if nonEmptyIndices == [ ] then 0 else (builtins.head nonEmptyIndices) + 1;
+      in
+      builtins.concatStringsSep "\n" (
+        (builtins.genList (i: builtins.elemAt lines i) insertionIndex)
+        ++ argumentLines
+        ++ (builtins.genList (i: builtins.elemAt lines (insertionIndex + i)) (lineCount - insertionIndex))
+      );
 
   scopeMod = import ./scope.nix {
     inherit

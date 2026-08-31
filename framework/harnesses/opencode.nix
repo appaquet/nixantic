@@ -69,12 +69,14 @@ _: {
         {
           frontmatter = {
             description = artifact.description;
+            "argument-hint" = artifact.argumentsHint;
             model = artifact.model;
             agent = artifact.agent;
             subtask = translatedSubtask;
           };
           frontmatterOrder = [
             "description"
+            "argument-hint"
             "model"
             "agent"
             "subtask"

@@ -47,8 +47,8 @@ let
       };
       commands.inspect = {
         description = "Inspect neutral content";
-        argumentHint = "[path]";
         content = "Inspect the supplied path";
+        arguments = [ { label = "Path"; } ];
         asSkill = true;
       };
       skills.reference = {
@@ -180,6 +180,13 @@ in
     grep -F 'Consumer-supplied rule' ${jjCore.config.nixantic.instructions.package}/pi/AGENTS.md
     grep -F 'allowed_subagents: false' ${jjCore.config.nixantic.instructions.package}/pi/agents/reviewer.md
     grep -F '(See: Neutral shared block)' ${jjCore.config.nixantic.instructions.package}/claude/commands/inspect.md
+    grep -F 'argument-hint: "[path]"' ${jjCore.config.nixantic.instructions.package}/claude/commands/inspect.md
+    grep -F 'argument-hint: "[path]"' ${jjCore.config.nixantic.instructions.package}/opencode/commands/inspect.md
+    grep -F 'Path: $ARGUMENTS' ${jjCore.config.nixantic.instructions.package}/pi/prompts/inspect.md
+    test -f ${jjCore.config.nixantic.instructions.package}/pi/skills/inspect/SKILL.md
+    ! grep -F 'Path: $ARGUMENTS' ${jjCore.config.nixantic.instructions.package}/pi/skills/inspect/SKILL.md
+    test -f ${jjCore.config.nixantic.instructions.package}/opencode/skills/inspect/SKILL.md
+    ! grep -F 'argument-hint' ${jjCore.config.nixantic.instructions.package}/opencode/skills/inspect/SKILL.md
     grep -F 'Neutral jj conditional' ${jjCore.config.nixantic.instructions.package}/claude/custom/vcs.md
     grep -F 'Consumer-supplied main instructions' ${gitCore.config.nixantic.instructions.package}/claude/CLAUDE.md
     grep -F 'Neutral git conditional' ${gitCore.config.nixantic.instructions.package}/claude/custom/vcs.md

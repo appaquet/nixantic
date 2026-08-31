@@ -55,6 +55,10 @@ let
       result = (import ./pi.nix { inherit pkgs lib; }).allPass;
     }
     {
+      name = "opencode";
+      result = (import ./opencode.nix { inherit pkgs lib; }).allPass;
+    }
+    {
       name = "rule-output";
       result = (import ./rule-output.nix { inherit pkgs lib; }).allPass;
     }

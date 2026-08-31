@@ -60,11 +60,14 @@ let
     grep -F 'argument-hint: "[path:with:colon]"' ${renderedPackage}/claude/commands/safe-command.md
     grep -F 'allowed-tools: ["Bash(command: test)", "Read # docs"]' ${renderedPackage}/claude/commands/safe-command.md
     grep -F 'Command body.' ${renderedPackage}/claude/commands/safe-command.md
+    grep -F 'Path: $ARGUMENTS' ${renderedPackage}/claude/commands/safe-command.md
     grep -F '# Rendered Package OpenCode' ${renderedPackage}/opencode/AGENTS.md
     grep -F '# Rendered Package Pi' ${renderedPackage}/pi/AGENTS.md
     grep -F 'description: "Run: safely # not a YAML comment"' ${renderedPackage}/pi/prompts/safe-command.md
     grep -F 'argument-hint: "[path:with:colon]"' ${renderedPackage}/pi/prompts/safe-command.md
+    grep -F 'Path: $ARGUMENTS' ${renderedPackage}/pi/prompts/safe-command.md
     cmp ${renderedPackage}/pi/skills/safe-command/SKILL.md <(printf '%s\n' '---' 'name: "safe-command"' 'description: "Run: safely # not a YAML comment"' '---' "" 'Command body.')
+    cmp ${renderedPackage}/opencode/skills/safe-command/SKILL.md <(printf '%s\n' '---' 'name: "safe-command"' 'description: "Run: safely # not a YAML comment"' '---' "" 'Command body.')
     grep -F 'name: "safe-skill"' ${renderedPackage}/pi/skills/safe-skill/SKILL.md
     test ! -s ${renderedPackage}/opencode/.gitignore
     grep -F 'Bundled reference body.' ${renderedPackage}/opencode/skills/safe-skill/refs/example.md

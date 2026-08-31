@@ -55,7 +55,7 @@ _: {
         frontmatter = {
           name = artifact.name;
           description = artifact.description;
-          "argument-hint" = artifact.argumentHint;
+          "argument-hint" = artifact.argumentsHint;
           model = artifact.model;
           effort = artifact.effort;
           context = artifact.context;
@@ -74,7 +74,14 @@ _: {
         ];
       };
       skill = {
-        frontmatter = command.frontmatter // {
+        frontmatter = {
+          name = artifact.name;
+          description = artifact.description;
+          model = artifact.model;
+          effort = artifact.effort;
+          context = artifact.context;
+          agent = artifact.agent;
+          "allowed-tools" = artifact.allowedTools;
           metadata = artifact.metadata;
           when_to_use = artifact.whenToUse;
           "disable-model-invocation" = artifact.disableModelInvocation;
@@ -83,7 +90,6 @@ _: {
         frontmatterOrder = [
           "name"
           "description"
-          "argument-hint"
           "model"
           "effort"
           "context"

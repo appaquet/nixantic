@@ -2,7 +2,12 @@
   nixantic.sources.rendered-package = {
     commands."safe-command" = {
       description = "Run: safely # not a YAML comment";
-      argumentHint = "[path:with:colon]";
+      arguments = [
+        {
+          label = "Path";
+          hint = "[path:with:colon]";
+        }
+      ];
       allowedTools = [
         "Bash(command: test)"
         "Read # docs"

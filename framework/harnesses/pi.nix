@@ -41,7 +41,7 @@ in
         outputPath = "prompts/${artifact.name}.md";
         frontmatter = {
           description = artifact.description;
-          "argument-hint" = artifact.argumentHint;
+          "argument-hint" = artifact.argumentsHint;
         };
         frontmatterOrder = [
           "description"
