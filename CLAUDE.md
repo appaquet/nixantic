@@ -1,7 +1,5 @@
 # Nixantic contributor guide
 
-Use this file when you work on this repository.
-
 This repo is the standalone Nixantic renderer and integration framework. Consumers own their instruction sources.
 
 The repo validates generic rendering and integration behavior, then produces generated configuration trees from consumer-authored Nix fragments.
@@ -20,13 +18,14 @@ The repo validates generic rendering and integration behavior, then produces gen
 - `modules/flake-parts.nix`: flake-parts exposure layer
 - `framework/`: renderer implementation, output adapters, post-processing, tests
 - `checks/default.nix`: repo validation checks, including README example coverage
+- `examples/`: consumer-facing copy-paste fragment examples; validated by the `examples` check in `checks/default.nix`
 - `source-sets.nix`: source-root discovery and duplicate detection
 
 ## Follow these repo rules
 
 - Keep framework fixtures neutral and unpublished. Consumers supply their instruction sources; do not add a built-in corpus.
 - Keep the stable consumer surface at the module API exposed from the flake.
-- When you change README examples or exported behavior, verify them against `flake.nix`, `modules/`, and `checks/default.nix`.
+- When you change README examples, `examples/`, or exported behavior, keep the README example and `examples/` consistent and verify them against `flake.nix`, `modules/`, and `checks/default.nix`.
 - Prefer changes in source fragments and renderer code over edits to rendered artifacts.
 - Before creating or editing instructions, agents, commands, skills, rules, `CLAUDE.md`, or `AGENTS.md`, load and follow the `mem-writing` skill.
 - Tests cover rendering, schemas, integrations, and executable behavior using neutral fixtures.

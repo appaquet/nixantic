@@ -1,5 +1,5 @@
 {
-  description = "Nixantic: a consumer-supplied instruction rendering framework";
+  description = "Nix framework for building agentic instructions for Claude Code, OpenCode and Pi.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -24,7 +24,9 @@
         "aarch64-linux"
         "aarch64-darwin"
       ];
+
       forAllSystems = nixpkgs.lib.genAttrs systems;
+
       checksFor =
         system:
         let
@@ -48,15 +50,19 @@
         default = ./modules/core.nix;
         core = ./modules/core.nix;
       };
+
       homeManagerModules = {
         default = ./modules/home-manager.nix;
         nixantic = ./modules/home-manager.nix;
       };
+
       homeModules = self.homeManagerModules;
+
       flakeModules = {
         default = ./modules/flake-parts.nix;
         nixantic = ./modules/flake-parts.nix;
       };
+
       devShells = forAllSystems (
         system:
         let
@@ -71,6 +77,7 @@
           };
         }
       );
+
       formatter = forAllSystems (
         system:
         let
@@ -78,6 +85,7 @@
         in
         pkgs.nixfmt
       );
+
       checks = forAllSystems checksFor;
     };
 }

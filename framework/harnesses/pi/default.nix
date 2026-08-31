@@ -4,7 +4,7 @@
 }:
 
 let
-  adapterRegistries = import ./pi/capabilities.nix { inherit lib; };
+  adapterRegistries = import ./capabilities.nix { inherit lib; };
   resolved = adapterRegistries.resolve (settings.harnesses.pi or { });
 in
 {

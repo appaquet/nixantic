@@ -1,3 +1,6 @@
+# Flake-level integration check: module API eval, home-manager mapping, flake-parts
+# consumer, and BOM assertions. Includes the renderer unit tests in framework/tests.
+
 {
   pkgs,
   lib,
@@ -93,6 +96,7 @@ let
       nixantic.instructions.wrappers.opencode.executable = "${fakeOpenCode}/bin/fake-opencode";
     }
   ];
+  exampleCore = evalCore [ { nixantic.sourceRoots = [ ../examples/opencode ]; } ];
 
   home = home-manager.lib.homeManagerConfiguration {
     inherit pkgs;
@@ -169,6 +173,36 @@ in
   git-claude-wrapper = gitCore.config.nixantic.instructions.wrapperChecks.claude;
   git-opencode-wrapper = gitCore.config.nixantic.instructions.wrapperChecks.opencode;
   configured-consumer = jjCore.config.nixantic.instructions.check;
+  examples =
+    let
+      package = exampleCore.config.nixantic.instructions.package;
+    in
+    pkgs.runCommand "nixantic-examples-check" { } ''
+      test -f ${package}/opencode/AGENTS.md
+      grep -F 'This project demonstrates the nixantic source format' ${package}/opencode/AGENTS.md
+      test -f ${package}/opencode/rules/styling.md
+      grep -F 'Keep prose concise and imperative' ${package}/opencode/rules/styling.md
+      test -f ${package}/opencode/commands/run-checks.md
+      grep -F 'description: "Run the project checks and report the result."' ${package}/opencode/commands/run-checks.md
+      test -f ${package}/opencode/commands/review.md
+      grep -F '## Project conventions' ${package}/opencode/commands/review.md
+      grep -F 'Keep fragments self-contained' ${package}/opencode/commands/review.md
+      test -f ${package}/opencode/skills/review/SKILL.md
+      grep -F 'name: "review"' ${package}/opencode/skills/review/SKILL.md
+      grep -F '## Project conventions' ${package}/opencode/skills/review/SKILL.md
+      ! grep -q 'Project conventions' ${package}/opencode/commands/run-checks.md
+      test ! -e ${package}/claude/CLAUDE.md
+      test ! -e ${package}/claude/rules/styling.md
+      test ! -e ${package}/claude/commands/run-checks.md
+      test ! -e ${package}/claude/commands/review.md
+      test ! -e ${package}/claude/skills/review/SKILL.md
+      test ! -e ${package}/pi/AGENTS.md
+      test ! -e ${package}/pi/rules/styling.md
+      test ! -e ${package}/pi/prompts/run-checks.md
+      test ! -e ${package}/pi/prompts/review.md
+      test ! -e ${package}/pi/skills/review/SKILL.md
+      touch $out
+    '';
   framework-contract = pkgs.runCommand "nixantic-framework-contract" { } ''
     test -f ${jjCore.config.nixantic.instructions.package}/claude/CLAUDE.md
     test -f ${jjCore.config.nixantic.instructions.package}/opencode/AGENTS.md

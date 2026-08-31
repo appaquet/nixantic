@@ -3,7 +3,7 @@
 let
   builders = import ../builders.nix { inherit pkgs lib; };
   output = import ../output.nix { inherit pkgs lib; };
-  pi = import ../harnesses/pi.nix { inherit lib; };
+  pi = import ../harnesses/pi { inherit lib; };
   scope = builders.makeScope {
     harness = pi;
     settings.harnesses.pi.rules.output = "merge-main";

@@ -31,5 +31,5 @@
 {
   claude = import ./claude.nix { inherit renderFrontmatter; };
   opencode = import ./opencode.nix { inherit renderFrontmatter; };
-  pi = import ./pi.nix { inherit lib settings; };
+  pi = import ./pi { inherit lib settings; };
 }
