@@ -10,6 +10,7 @@
   flake-parts,
   nixpkgs,
   flakePartsModule,
+  examplesPackage,
 }:
 
 let
@@ -96,8 +97,6 @@ let
       nixantic.instructions.wrappers.opencode.executable = "${fakeOpenCode}/bin/fake-opencode";
     }
   ];
-  exampleCore = evalCore [ { nixantic.sourceRoots = [ ../examples/opencode ]; } ];
-
   home = home-manager.lib.homeManagerConfiguration {
     inherit pkgs;
     modules = [
@@ -175,7 +174,7 @@ in
   configured-consumer = jjCore.config.nixantic.instructions.check;
   examples =
     let
-      package = exampleCore.config.nixantic.instructions.package;
+      package = examplesPackage;
     in
     pkgs.runCommand "nixantic-examples-check" { } ''
       test -f ${package}/opencode/AGENTS.md

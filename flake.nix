@@ -43,6 +43,7 @@
           coreModule = self.nixanticModules.core;
           homeManagerModule = self.homeManagerModules.default;
           flakePartsModule = self.flakeModules.default;
+          examplesPackage = self.packages.${system}.examples;
         };
     in
     {
@@ -62,6 +63,23 @@
         default = ./modules/flake-parts.nix;
         nixantic = ./modules/flake-parts.nix;
       };
+
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+        in
+        {
+          examples =
+            (nixpkgs.lib.evalModules {
+              specialArgs = { inherit pkgs; };
+              modules = [
+                self.nixanticModules.core
+                { nixantic.sourceRoots = [ ./examples/opencode ]; }
+              ];
+            }).config.nixantic.instructions.package;
+        }
+      );
 
       devShells = forAllSystems (
         system:

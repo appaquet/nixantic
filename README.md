@@ -44,6 +44,14 @@ A fragment file exports its sources under `nixantic.sources`, grouped by owner n
 
 A copy-paste OpenCode example lives in `examples/opencode`. Copy those fragments into your source tree, then set `nixantic.sourceRoots = [ ./nixantic-sources ];` in the Home Manager module below.
 
+To render the example fragments without setting anything up, run:
+
+```sh
+nix build github:appaquet/nixantic#examples
+```
+
+The rendered trees land in `./result/opencode`: `AGENTS.md`, `commands/`, `rules/`, `skills/`. To build for another system, use `#packages.<system>.examples`.
+
 The Home Manager module discovers every fragment file under `nixantic.sourceRoots` and renders a package of harness trees. Symlink the files you want into your harness directories:
 
 ```nix
