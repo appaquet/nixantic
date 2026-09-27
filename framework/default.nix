@@ -13,6 +13,7 @@ let
     versionControl.mode = "jj";
     harnesses = {
       claude.rules.output = "files";
+      codex.rules.output = "merge-main";
       opencode.rules.output = "files";
       pi = {
         rules.output = "merge-main";
@@ -27,11 +28,13 @@ let
   configuredHarnesses = builtins.attrNames (effectiveSettings.harnesses or { });
   knownHarnesses = [
     "claude"
+    "codex"
     "opencode"
     "pi"
   ];
   harnessSettingKeys = {
     claude = [ "rules" ];
+    codex = [ "rules" ];
     opencode = [ "rules" ];
     pi = [
       "rules"

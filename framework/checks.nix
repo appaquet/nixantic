@@ -55,6 +55,16 @@ let
     test -f ${renderedPackage}/pi/skills/safe-command/SKILL.md
     test -f ${renderedPackage}/pi/skills/safe-skill/SKILL.md
     test -f ${renderedPackage}/pi/skills/safe-skill/refs/example.md
+    test -f ${renderedPackage}/codex/AGENTS.md
+    test -f ${renderedPackage}/codex/BOM.md
+    test -f ${renderedPackage}/codex/skills/safe-command/SKILL.md
+    test -f ${renderedPackage}/codex/skills/safe-skill/SKILL.md
+    test -f ${renderedPackage}/codex/skills/safe-skill/refs/example.md
+    grep -F '# Rendered Package Codex' ${renderedPackage}/codex/AGENTS.md
+    grep -F 'description: "Run: safely # not a YAML comment"' ${renderedPackage}/codex/skills/safe-command/SKILL.md
+    grep -F 'Path: $ARGUMENTS' ${renderedPackage}/codex/skills/safe-command/SKILL.md
+    grep -F 'name: "safe-skill"' ${renderedPackage}/codex/skills/safe-skill/SKILL.md
+    ! grep -F 'argument-hint' ${renderedPackage}/codex/skills/safe-command/SKILL.md
 
     grep -F 'description: "Run: safely # not a YAML comment"' ${renderedPackage}/claude/commands/safe-command.md
     grep -F 'argument-hint: "[path:with:colon]"' ${renderedPackage}/claude/commands/safe-command.md
@@ -104,6 +114,46 @@ let
         touch $out
       '';
 
+  codexAgentToml =
+    let
+      agent =
+        (tooling.makeScope {
+          harness = harnesses.codex;
+          settings.harnesses.codex.rules.output = "merge-main";
+          sources.agents.reviewer = {
+            description = "Review neutral content";
+            content = "Review the supplied content";
+            model.codex = {
+              model = "provider/model";
+              effort = "high";
+            };
+          };
+        }).agents.reviewer;
+    in
+    agent.embed;
+
+  codexAgentTomlFile = pkgs.writeText "codex-agent-toml" codexAgentToml;
+
+  codexAgentTomlCheck =
+    pkgs.runCommand "nixantic-codex-agent-toml-check"
+      {
+        nativeBuildInputs = [ pkgs.python3 ];
+      }
+      ''
+        python3 -c "
+        import sys
+        import tomllib
+
+        data = tomllib.load(open(sys.argv[1], 'rb'))
+        assert data['name'] == 'reviewer', data
+        assert data['description'] == 'Review neutral content', data
+        assert data['developer_instructions'] == 'Review the supplied content\n', data
+        assert data['model'] == 'provider/model', data
+        assert data['model_reasoning_effort'] == 'high', data
+        " ${codexAgentTomlFile}
+        touch $out
+      '';
+
   badRefCheck =
     pkgs.runCommand "bad-block-reference-check"
       {
@@ -135,6 +185,7 @@ pkgs.runCommand "nixantic-instructions-check" { } ''
   : ${badRefCheck}
   : ${missingVendoredEncodingCheck}
   : ${renderedPackageCheck}
+  : ${codexAgentTomlCheck}
   : ${package}
   touch $out
 ''

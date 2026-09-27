@@ -69,7 +69,7 @@ let
   #
   #   postProcess: when true, applies postProcessContent to every file's embed
   #     before writing. Useful for agent-to-human output where agents may emit
-  #     blank lines or `.` sentinels.
+  #     blank lines or `.` sentinels. Raw (harness-owned) entries skip this step.
   #
   #   bom: package/render-only bill-of-materials export.
   #     Uses tiktoken with an encoding-first configuration and writes one
@@ -110,7 +110,9 @@ let
         let
           harnessName = scope.harness.name or scope.harness.outputDir;
           filename = resolveFilename path item;
-          content = process item.embed;
+          # Raw entries are harness-owned final bytes (e.g. Codex agent TOML);
+          # only frontmatter-assembled content gets markdown cleanup.
+          content = if item.raw or false then item.embed else process item.embed;
         in
         {
           inherit content source;

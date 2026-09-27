@@ -125,6 +125,12 @@ in
           description = "How Claude Code rule instructions are emitted.";
         };
 
+        codex.rules.output = lib.mkOption {
+          type = rulesOutputType;
+          default = "merge-main";
+          description = "How Codex rule instructions are emitted.";
+        };
+
         opencode.rules.output = lib.mkOption {
           type = rulesOutputType;
           default = "files";

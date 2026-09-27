@@ -40,6 +40,7 @@
         role = "main";
         heading = scope.forHarness {
           claude = "Rendered Package Claude";
+          codex = "Rendered Package Codex";
           opencode = "Rendered Package OpenCode";
           pi = "Rendered Package Pi";
         };

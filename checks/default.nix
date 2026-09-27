@@ -53,13 +53,25 @@ let
         description = "Inspect neutral content";
         content = "Inspect the supplied path";
         arguments = [ { label = "Path"; } ];
-        asSkill = true;
+        # Codex renders commands as skills, so an asSkill twin would collide
+        # on the skills/<name>/SKILL.md destination.
+        asSkill = {
+          claude = true;
+          opencode = true;
+          pi = true;
+        };
       };
       skills.reference = {
         main = {
           description = "Neutral reference skill";
           content = "Use the neutral reference";
-          asCommand = true;
+          # Codex renders commands as skills, so an asCommand twin would
+          # collide on the skills/<name>/SKILL.md destination.
+          asCommand = {
+            claude = true;
+            opencode = true;
+            pi = true;
+          };
         };
         files."refs/example.md" = {
           kind = "md";

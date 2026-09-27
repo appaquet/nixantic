@@ -100,14 +100,35 @@ let
       };
     }).instructions.demo.outputPath
   );
+  embedResult =
+    (builders.makeScope {
+      harness = claude // {
+        renderArtifact = _: {
+          outputPath = "demo.toml";
+          embed = "key = \"value\"\n";
+        };
+      };
+      sources.instructions.demo = {
+        heading = "Demo";
+        content = "Body";
+      };
+    }).instructions.demo;
+  bothShapes = mkInvalidResult (_: {
+    outputPath = "demo.toml";
+    embed = "key = \"value\"\n";
+    frontmatter = { };
+    frontmatterOrder = [ ];
+  });
+  neitherShape = mkInvalidResult (_: {
+    outputPath = "demo.toml";
+  });
 
   cases = [
     {
       name = "adapter frontmatter follows its explicit order and omits null values";
       pass =
         command.embed
-        ==
-          "---\nname: \"demo\"\ndescription: \"Demo command\"\nargument-hint: \"[path] [target]\"\n---\n\nBody\nPath: $ARGUMENTS\nTarget: $ARGUMENTS";
+        == "---\nname: \"demo\"\ndescription: \"Demo command\"\nargument-hint: \"[path] [target]\"\n---\n\nBody\nPath: $ARGUMENTS\nTarget: $ARGUMENTS";
       detail = "expected Claude command frontmatter in adapter-declared order, derived multi-argument hint, and argument lines after the first content line";
     }
     {
@@ -140,6 +161,24 @@ let
       name = "renderer and authored paths must be safe relative paths";
       pass = !unsafeRendererPath.success && !unsafeAuthoredPath.success;
       detail = "expected absolute and parent-relative paths to fail";
+    }
+    {
+      name = "renderer embed results pass through verbatim and mark the entry raw";
+      pass =
+        embedResult.outputPath == "demo.toml"
+        && embedResult.embed == "key = \"value\"\n"
+        && embedResult.raw;
+      detail = "expected the embed bytes kept verbatim with the raw flag set";
+    }
+    {
+      name = "renderer results must not mix embed with the frontmatter shape";
+      pass = !bothShapes.success;
+      detail = "expected a result carrying both embed and frontmatter to fail";
+    }
+    {
+      name = "renderer results must not lack both embed and the frontmatter shape";
+      pass = !neitherShape.success;
+      detail = "expected a result with neither embed nor frontmatter to fail";
     }
   ];
 
