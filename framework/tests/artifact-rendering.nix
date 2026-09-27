@@ -2,7 +2,7 @@
 
 let
   builders = import ../builders.nix { inherit pkgs lib; };
-  harnesses = import ../harnesses { renderFrontmatter = builders.renderFrontmatter; };
+  harnesses = import ../harnesses { inherit lib; renderFrontmatter = builders.renderFrontmatter; };
   claude = harnesses.claude;
 
   command =

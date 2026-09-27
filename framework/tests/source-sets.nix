@@ -9,7 +9,7 @@
 let
   builders = import ../builders.nix { inherit pkgs lib; };
   sourcesLib = import ../../source-sets.nix;
-  harnesses = import ../harnesses { renderFrontmatter = builders.renderFrontmatter; };
+  harnesses = import ../harnesses { inherit lib; renderFrontmatter = builders.renderFrontmatter; };
 
   mkScope = args: builders.makeScope ({ harness = harnesses.claude; } // args);
   mkOpencodeScope = args: builders.makeScope ({ harness = harnesses.opencode; } // args);

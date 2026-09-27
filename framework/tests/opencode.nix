@@ -2,7 +2,7 @@
 
 let
   builders = import ../builders.nix { inherit pkgs lib; };
-  opencode = (import ../harnesses { renderFrontmatter = builders.renderFrontmatter; }).opencode;
+  opencode = (import ../harnesses { inherit lib; renderFrontmatter = builders.renderFrontmatter; }).opencode;
   scope = builders.makeScope {
     harness = opencode;
     sources = {

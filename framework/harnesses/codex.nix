@@ -2,7 +2,7 @@
 # commands became skills; custom prompts were removed in codex 0.117), and
 # standalone agent TOML files. Agent TOML is not frontmatter + markdown, so
 # the agent path returns an embed and the harness owns the final bytes.
-_: {
+{ lib, ... }: {
   name = "codex";
   outputDir = "codex";
 
@@ -29,7 +29,7 @@ _: {
               "description = ${tomlString artifact.description}"
               "developer_instructions = \"\"\""
             ]
-            ++ builtins.split "\n" artifact.content
+            ++ lib.splitString "\n" artifact.content
             ++ [ "\"\"\"" ]
             ++ (if artifact.model != null then [ "model = ${tomlString artifact.model}" ] else [ ])
             ++ (

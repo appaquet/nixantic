@@ -29,12 +29,12 @@
 
 {
   renderFrontmatter,
-  lib ? null,
+  lib,
   settings ? { },
 }:
 {
   claude = import ./claude.nix { inherit renderFrontmatter; };
-  codex = import ./codex.nix { inherit renderFrontmatter; };
+  codex = import ./codex.nix { inherit lib renderFrontmatter; };
   opencode = import ./opencode.nix { inherit renderFrontmatter; };
   pi = import ./pi { inherit lib settings; };
 }

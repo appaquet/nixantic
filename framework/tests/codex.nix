@@ -3,7 +3,7 @@
 let
   builders = import ../builders.nix { inherit pkgs lib; };
   output = import ../output.nix { inherit pkgs lib; };
-  codex = (import ../harnesses { renderFrontmatter = builders.renderFrontmatter; }).codex;
+  codex = (import ../harnesses { inherit lib; renderFrontmatter = builders.renderFrontmatter; }).codex;
   scope = builders.makeScope {
     harness = codex;
     settings.harnesses.codex.rules.output = "merge-main";
@@ -20,7 +20,7 @@ let
       };
       agents.reviewer = {
         description = "Review code";
-        content = "Agent body.";
+        content = "First line.\nSecond line.";
         model.codex = {
           model = "provider/model";
           effort = "high";
@@ -86,7 +86,7 @@ let
         && scope.agents.reviewer.raw
         &&
           scope.agents.reviewer.embed
-          == "name = \"reviewer\"\ndescription = \"Review code\"\ndeveloper_instructions = \"\"\"\nAgent body.\n\"\"\"\nmodel = \"provider/model\"\nmodel_reasoning_effort = \"high\""
+          == "name = \"reviewer\"\ndescription = \"Review code\"\ndeveloper_instructions = \"\"\"\nFirst line.\nSecond line.\n\"\"\"\nmodel = \"provider/model\"\nmodel_reasoning_effort = \"high\""
         && scope.agents.planner.outputPath == "agents/planner.toml"
         &&
           scope.agents.planner.embed

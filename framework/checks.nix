@@ -12,7 +12,7 @@ let
   tooling = import ./builders.nix { inherit pkgs lib; };
   bomRendererPython = pkgs.python3.withPackages (_: [ pkgs.python3Packages.tiktoken ]);
   sourceSets = import ../source-sets.nix;
-  harnesses = import ./harnesses { renderFrontmatter = tooling.renderFrontmatter; };
+  harnesses = import ./harnesses { inherit lib; renderFrontmatter = tooling.renderFrontmatter; };
   missingVendoredEncodingManifest = pkgs.writeText "missing-vendored-encoding-manifest.json" (
     builtins.toJSON {
       harness = "claude";
