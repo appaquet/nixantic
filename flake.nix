@@ -1,5 +1,5 @@
 {
-  description = "Nix framework for building agentic instructions for Claude Code, OpenCode and Pi.";
+  description = "Nix framework for building agentic instructions for Claude Code, OpenCode, Codex and Pi.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -75,7 +75,12 @@
               specialArgs = { inherit pkgs; };
               modules = [
                 self.nixanticModules.core
-                { nixantic.sourceRoots = [ ./examples/opencode ]; }
+                {
+                  nixantic.sourceRoots = [
+                    ./examples/opencode
+                    ./examples/codex
+                  ];
+                }
               ];
             }).config.nixantic.instructions.package;
         }

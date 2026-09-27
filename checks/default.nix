@@ -202,6 +202,17 @@ in
       grep -F 'name: "review"' ${package}/opencode/skills/review/SKILL.md
       grep -F '## Project conventions' ${package}/opencode/skills/review/SKILL.md
       ! grep -q 'Project conventions' ${package}/opencode/commands/run-checks.md
+      test -f ${package}/codex/AGENTS.md
+      grep -F 'This project demonstrates the nixantic source format for Codex' ${package}/codex/AGENTS.md
+      grep -F 'Keep prose concise and imperative' ${package}/codex/AGENTS.md
+      test ! -e ${package}/codex/rules/codex-styling.md
+      test -f ${package}/codex/skills/codex-run-checks/SKILL.md
+      grep -F 'description: "Run the project checks and report the result."' ${package}/codex/skills/codex-run-checks/SKILL.md
+      test -f ${package}/codex/skills/codex-review/SKILL.md
+      grep -F 'name: "codex-review"' ${package}/codex/skills/codex-review/SKILL.md
+      grep -F '## Project conventions' ${package}/codex/skills/codex-review/SKILL.md
+      grep -F 'Keep fragments self-contained' ${package}/codex/skills/codex-review/SKILL.md
+      ! grep -q 'Project conventions' ${package}/codex/skills/codex-run-checks/SKILL.md
       test ! -e ${package}/claude/CLAUDE.md
       test ! -e ${package}/claude/rules/styling.md
       test ! -e ${package}/claude/commands/run-checks.md
@@ -212,6 +223,10 @@ in
       test ! -e ${package}/pi/prompts/run-checks.md
       test ! -e ${package}/pi/prompts/review.md
       test ! -e ${package}/pi/skills/review/SKILL.md
+      test ! -e ${package}/claude/skills/codex-review/SKILL.md
+      test ! -e ${package}/opencode/commands/codex-review.md
+      test ! -e ${package}/opencode/skills/codex-review/SKILL.md
+      test ! -e ${package}/pi/skills/codex-review/SKILL.md
       touch $out
     '';
   framework-contract = pkgs.runCommand "nixantic-framework-contract" { } ''
@@ -235,6 +250,15 @@ in
     grep -F 'Neutral jj conditional' ${jjCore.config.nixantic.instructions.package}/claude/custom/vcs.md
     grep -F 'Consumer-supplied main instructions' ${gitCore.config.nixantic.instructions.package}/claude/CLAUDE.md
     grep -F 'Neutral git conditional' ${gitCore.config.nixantic.instructions.package}/claude/custom/vcs.md
+    test -f ${jjCore.config.nixantic.instructions.package}/codex/AGENTS.md
+    grep -F 'Consumer-supplied main instructions' ${jjCore.config.nixantic.instructions.package}/codex/AGENTS.md
+    grep -F 'Consumer-supplied rule' ${jjCore.config.nixantic.instructions.package}/codex/AGENTS.md
+    test -f ${jjCore.config.nixantic.instructions.package}/codex/agents/reviewer.toml
+    grep -F 'name = "reviewer"' ${jjCore.config.nixantic.instructions.package}/codex/agents/reviewer.toml
+    grep -F 'developer_instructions = """' ${jjCore.config.nixantic.instructions.package}/codex/agents/reviewer.toml
+    grep -F '(See: Neutral shared block)' ${jjCore.config.nixantic.instructions.package}/codex/skills/inspect/SKILL.md
+    ! grep -F 'argument-hint' ${jjCore.config.nixantic.instructions.package}/codex/skills/inspect/SKILL.md
+    test -f ${jjCore.config.nixantic.instructions.package}/codex/skills/reference/refs/example.md
     touch $out
   '';
   wrapper-execution = pkgs.runCommand "nixantic-wrapper-execution" { } ''
