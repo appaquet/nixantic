@@ -33,8 +33,8 @@
   settings ? { },
 }:
 {
-  claude = import ./claude.nix { inherit renderFrontmatter; };
-  codex = import ./codex.nix { inherit lib renderFrontmatter; };
-  opencode = import ./opencode.nix { inherit renderFrontmatter; };
+  claude = import ./claude.nix { inherit renderFrontmatter settings; };
+  codex = import ./codex.nix { inherit lib renderFrontmatter settings; };
+  opencode = import ./opencode.nix { inherit renderFrontmatter settings; };
   pi = import ./pi { inherit lib settings; };
 }

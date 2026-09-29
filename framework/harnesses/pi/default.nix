@@ -1,15 +1,18 @@
 {
   lib,
   settings ? { },
+  ...
 }:
 
 let
   adapterRegistries = import ./capabilities.nix { inherit lib; };
   resolved = adapterRegistries.resolve (settings.harnesses.pi or { });
+  tasksSupport = resolved.capabilities.tasks.create != null;
 in
 {
   name = "pi";
   outputDir = "pi";
+  tasksSupport = tasksSupport;
   capabilities = resolved.capabilities;
   prose = resolved.prose;
   tools = {

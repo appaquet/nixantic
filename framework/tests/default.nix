@@ -51,6 +51,10 @@ let
       result = (import ./capabilities.nix { inherit pkgs lib; }).allPass;
     }
     {
+      name = "tasks";
+      result = (import ./tasks.nix { inherit pkgs lib; }).allPass;
+    }
+    {
       name = "pi";
       result = (import ./pi.nix { inherit pkgs lib; }).allPass;
     }

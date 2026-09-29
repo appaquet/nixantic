@@ -12,9 +12,18 @@ let
   defaultSettings = {
     versionControl.mode = "jj";
     harnesses = {
-      claude.rules.output = "files";
-      codex.rules.output = "merge-main";
-      opencode.rules.output = "files";
+      claude = {
+        rules.output = "files";
+        tasks = false; # they dropped it by default
+      };
+      codex = {
+        rules.output = "merge-main";
+        tasks = true;
+      };
+      opencode = {
+        rules.output = "files";
+        tasks = true;
+      };
       pi = {
         rules.output = "merge-main";
         agents = "tintinweb";
@@ -33,9 +42,18 @@ let
     "pi"
   ];
   harnessSettingKeys = {
-    claude = [ "rules" ];
-    codex = [ "rules" ];
-    opencode = [ "rules" ];
+    claude = [
+      "rules"
+      "tasks"
+    ];
+    codex = [
+      "rules"
+      "tasks"
+    ];
+    opencode = [
+      "rules"
+      "tasks"
+    ];
     pi = [
       "rules"
       "agents"

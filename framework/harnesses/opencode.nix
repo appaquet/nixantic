@@ -1,12 +1,21 @@
-_: {
+{
+  settings ? { },
+  ...
+}:
+let
+  opencodeSettings = (settings.harnesses or { }).opencode or { };
+  tasksSupport = opencodeSettings.tasks or true;
+in
+{
   name = "opencode";
   outputDir = "opencode";
+  tasksSupport = tasksSupport;
   rootFiles = {
     ".gitignore" = "";
   };
 
   tools = {
-    taskCreate = "todowrite";
+    taskCreate = if tasksSupport then "todowrite" else null;
     askUserQuestion = "AskUserQuestion";
   };
   prose.questions.request = "use `AskUserQuestion`";

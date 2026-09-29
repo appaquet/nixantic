@@ -8,6 +8,9 @@ let
     tasks = "tintinweb";
     questions = "pi-vault-questionnaire";
   };
+  noneTask = capabilities.resolve {
+    tasks = "none";
+  };
   unknownAgent = builtins.tryEval (capabilities.validate { agents = "unknown"; });
   unknownTask = builtins.tryEval (capabilities.validate { tasks = "unknown"; });
   unknownQuestion = builtins.tryEval (capabilities.validate { questions = "unknown"; });
@@ -58,6 +61,14 @@ let
       name = "unknown Pi adapter selections fail clearly";
       pass = !unknownAgent.success && !unknownTask.success && !unknownQuestion.success;
       detail = "expected unknown agent, task, and question selections to fail evaluation";
+    }
+    {
+      name = "Pi none task adapter resolves to no tool and validates";
+      pass =
+        noneTask.capabilities.tasks.create == null
+        && noneTask.prose.tasks.workflow == ""
+        && capabilities.validate { tasks = "none"; };
+      detail = "expected the none task adapter to expose no tool and pass validation";
     }
   ];
 

@@ -11,6 +11,13 @@ let
       };
       prose.workflow = "Use the `Task*` tools for tasks.";
     };
+    # No task tool: consumers track tasks in-context instead of via a tool.
+    none = {
+      capabilities = {
+        create = null;
+      };
+      prose.workflow = "";
+    };
   };
   questionAdapters = {
     # @pi-vault/pi-questionnaire registers the `questionnaire` tool.
@@ -90,8 +97,9 @@ in
     config:
     let
       resolved = resolve config;
+      tasksDisabled = (config.tasks or "tintinweb") == "none";
     in
     resolved.capabilities.agents.launch != null
-    && resolved.capabilities.tasks.create != null
+    && (tasksDisabled || resolved.capabilities.tasks.create != null)
     && resolved.capabilities.questions.ask != null;
 }

@@ -2,14 +2,24 @@
 # commands became skills; custom prompts were removed in codex 0.117), and
 # standalone agent TOML files. Agent TOML is not frontmatter + markdown, so
 # the agent path returns an embed and the harness owns the final bytes.
-{ lib, ... }: {
+{
+  lib,
+  settings ? { },
+  ...
+}:
+let
+  codexSettings = (settings.harnesses or { }).codex or { };
+  tasksSupport = codexSettings.tasks or true;
+in
+{
   name = "codex";
   outputDir = "codex";
+  tasksSupport = tasksSupport;
 
   # Built-in Codex tool names: update_plan maintains the session todo list
   # and experimental_request_user_input asks the user a structured question.
   tools = {
-    taskCreate = "update_plan";
+    taskCreate = if tasksSupport then "update_plan" else null;
     askUserQuestion = "experimental_request_user_input";
   };
   prose.questions.request = "use `experimental_request_user_input`";

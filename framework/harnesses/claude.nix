@@ -1,9 +1,18 @@
-_: {
+{
+  settings ? { },
+  ...
+}:
+let
+  claudeSettings = (settings.harnesses or { }).claude or { };
+  tasksSupport = claudeSettings.tasks or false;
+in
+{
   name = "claude";
   outputDir = "claude";
+  tasksSupport = tasksSupport;
 
   tools = {
-    taskCreate = "TaskCreate";
+    taskCreate = if tasksSupport then "TaskCreate" else null;
     askUserQuestion = "AskUserQuestion";
   };
   prose.questions.request = "use `AskUserQuestion`";

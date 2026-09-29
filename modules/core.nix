@@ -125,16 +125,34 @@ in
           description = "How Claude Code rule instructions are emitted.";
         };
 
+        claude.tasks = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+          description = "Whether Claude Code exposes the task tool; when false consumers track tasks in-context.";
+        };
+
         codex.rules.output = lib.mkOption {
           type = rulesOutputType;
           default = "merge-main";
           description = "How Codex rule instructions are emitted.";
         };
 
+        codex.tasks = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Whether Codex exposes the task tool; when false consumers track tasks in-context.";
+        };
+
         opencode.rules.output = lib.mkOption {
           type = rulesOutputType;
           default = "files";
           description = "How OpenCode rule instructions are emitted.";
+        };
+
+        opencode.tasks = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Whether OpenCode exposes the task tool; when false consumers track tasks in-context.";
         };
 
         pi = {
@@ -149,9 +167,12 @@ in
             description = "Pi sub-agent file adapter expected by the rendered instructions.";
           };
           tasks = lib.mkOption {
-            type = lib.types.enum [ "tintinweb" ];
+            type = lib.types.enum [
+              "tintinweb"
+              "none"
+            ];
             default = "tintinweb";
-            description = "Pi task capability adapter expected by the rendered instructions.";
+            description = "Pi task capability adapter expected by the rendered instructions; 'none' disables the task tool so consumers track tasks in-context.";
           };
           questions = lib.mkOption {
             type = lib.types.enum [
