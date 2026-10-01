@@ -113,6 +113,9 @@ let
   #                    Harness-rendered: Claude renders as `model` and `effort`; OpenCode renders as `model` and `reasoningEffort`.
   #     permission   - Attrset keyed by harness name (e.g. { claude = { disallowedTools = [ "Agent" ]; }; }).
   #                    Constructor selects permission.<active-harness> or null.
+  #     promptMode   - "append" or "replace", selecting the sub-agent system prompt on harnesses
+  #                    that support it (Pi renders `prompt_mode`). Omitted means the harness
+  #                    default, which is append for Pi.
   #
   #   Scope-consumed
   #     harnesses    - Restrict to specific harnesses. Omitted = all harnesses.
@@ -148,7 +151,19 @@ let
 
       permission = args.permission or null;
       selectedPermission = if permission != null then permission.${args.harness.name} or null else null;
+
+      promptMode = args.promptMode or null;
     in
+    assert
+      promptMode == null
+      || (
+        builtins.isString promptMode
+        && builtins.elem promptMode [
+          "append"
+          "replace"
+        ]
+      )
+      || throw "Nixantic agent '${args.key}' promptMode must be append or replace";
     renderArtifact {
       inherit (args)
         harness
@@ -162,6 +177,7 @@ let
       model = selectedModel;
       effort = selectedEffort;
       permission = selectedPermission;
+      inherit promptMode;
     }
     // {
       reference = mkAgentReference args.name;

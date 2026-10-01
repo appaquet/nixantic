@@ -83,8 +83,13 @@ in
   renderAgentArtifact =
     artifact:
     let
+      # Every tintinweb policy field is optional, and validatePolicy returns an empty
+      # attrset when none is authored, so the frontmatter reads each one with `or null`.
       policy = validatePolicy artifact.permission;
       thinking = artifact.effort;
+      # The plugin defaults file-based agents to replace, so an undeclared mode becomes
+      # the append behavior authored sources expect.
+      promptMode = if (artifact.promptMode or null) == null then "append" else artifact.promptMode;
     in
     assert
       thinking == null
@@ -102,17 +107,18 @@ in
       frontmatter = {
         name = artifact.name;
         description = artifact.description;
-        tools = policy.tools;
-        disallowed_tools = policy.disallowedTools;
-        extensions = policy.extensions;
-        exclude_extensions = policy.excludeExtensions;
-        skills = policy.skills;
-        allowed_subagents = policy.allowedSubagents;
+        tools = policy.tools or null;
+        disallowed_tools = policy.disallowedTools or null;
+        extensions = policy.extensions or null;
+        exclude_extensions = policy.excludeExtensions or null;
+        skills = policy.skills or null;
+        allowed_subagents = policy.allowedSubagents or null;
+        prompt_mode = promptMode;
         model = artifact.model;
         inherit thinking;
-        persist_session = policy.persistSession;
-        isolated = policy.isolated;
-        isolation = policy.isolation;
+        persist_session = policy.persistSession or null;
+        isolated = policy.isolated or null;
+        isolation = policy.isolation or null;
       };
       frontmatterOrder = [
         "name"
@@ -123,6 +129,7 @@ in
         "exclude_extensions"
         "skills"
         "allowed_subagents"
+        "prompt_mode"
         "model"
         "thinking"
         "persist_session"

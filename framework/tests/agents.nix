@@ -15,6 +15,8 @@ let
         effort = "xhigh";
       };
     };
+    # Pi-only: the other harness renderers must keep ignoring it.
+    promptMode = "replace";
     permission = {
       claude = {
         disallowedTools = [ "Agent" ];
@@ -61,12 +63,12 @@ let
 
   cases = [
     {
-      name = "Claude agent selects its model from string, omits OpenCode-only effort, and renders disallowedTools permission";
+      name = "Claude agent selects its model from string, omits OpenCode-only effort, renders disallowedTools permission, and ignores the Pi-only prompt mode";
       pass = claudeAgent == claudeExpected;
       detail = "expected Claude sonnet model with no effort field and disallowedTools: [\"Agent\"]";
     }
     {
-      name = "OpenCode agent selects its model and effort from nested attrset";
+      name = "OpenCode agent selects its model and effort from nested attrset and ignores the Pi-only prompt mode";
       pass = opencodeAgent == opencodeExpected;
       detail = "expected OpenCode selects its model from nested model attrset, and effort, and subagent mode";
     }

@@ -3,7 +3,11 @@
 let
   builders = import ../builders.nix { inherit pkgs lib; };
   output = import ../output.nix { inherit pkgs lib; };
-  codex = (import ../harnesses { inherit lib; renderFrontmatter = builders.renderFrontmatter; }).codex;
+  codex =
+    (import ../harnesses {
+      inherit lib;
+      renderFrontmatter = builders.renderFrontmatter;
+    }).codex;
   scope = builders.makeScope {
     harness = codex;
     settings.harnesses.codex.rules.output = "merge-main";
@@ -21,6 +25,8 @@ let
       agents.reviewer = {
         description = "Review code";
         content = "First line.\nSecond line.";
+        # Pi-only: the Codex TOML renderer must keep ignoring it.
+        promptMode = "replace";
         model.codex = {
           model = "provider/model";
           effort = "high";
@@ -80,7 +86,7 @@ let
       detail = "expected role main to select AGENTS.md and merge-main to fold the rule body into it";
     }
     {
-      name = "Codex agents render standalone TOML through the embed contract";
+      name = "Codex agents render standalone TOML through the embed contract and ignore the Pi-only prompt mode";
       pass =
         scope.agents.reviewer.outputPath == "agents/reviewer.toml"
         && scope.agents.reviewer.raw

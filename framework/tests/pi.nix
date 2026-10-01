@@ -43,6 +43,11 @@ let
           isolation = "worktree";
         };
       };
+      agents.scout = {
+        description = "Scout code";
+        content = "Scout body";
+        promptMode = "replace";
+      };
       commands.demo = {
         description = "Run demo";
         content = "Goal: run the demo for $1.\n\nThe prompt keeps $1 for positional use.";
@@ -90,6 +95,16 @@ let
         description = "Invalid";
         content = "Agent body";
         permission.pi.permissionMode = "bypassPermissions";
+      };
+    }).agents.invalid.embed
+  );
+  invalidPromptMode = builtins.tryEval (
+    (builders.makeScope {
+      harness = pi;
+      sources.agents.invalid = {
+        description = "Invalid";
+        content = "Agent body";
+        promptMode = "sometimes";
       };
     }).agents.invalid.embed
   );
@@ -151,36 +166,31 @@ let
       name = "Pi command renders declared arguments after the first content line";
       pass =
         scope.commands.demo.embed
-        ==
-          "---\ndescription: \"Run demo\"\nargument-hint: \"[question]\"\n---\n\nGoal: run the demo for $1.\nQuestion: $ARGUMENTS\n\nThe prompt keeps $1 for positional use.";
+        == "---\ndescription: \"Run demo\"\nargument-hint: \"[question]\"\n---\n\nGoal: run the demo for $1.\nQuestion: $ARGUMENTS\n\nThe prompt keeps $1 for positional use.";
       detail = "expected the argument line after the first content line and a derived argument hint";
     }
     {
       name = "Pi argument hint override renders verbatim";
       pass =
         scope.commands.think.embed
-        ==
-          "---\ndescription: \"Think deeply\"\nargument-hint: \"[problem or context]\"\n---\n\nGoal: reason about the problem.\nProblem: $ARGUMENTS";
+        == "---\ndescription: \"Think deeply\"\nargument-hint: \"[problem or context]\"\n---\n\nGoal: reason about the problem.\nProblem: $ARGUMENTS";
       detail = "expected the explicit per-argument hint to replace the derived one";
     }
     {
       name = "Pi command argument injection runs on final block-interpolated content";
       pass =
         scope.commands.blocky.embed
-        ==
-          "---\ndescription: \"Block-led command\"\nargument-hint: \"[target]\"\n---\n\nIntro line from block\nTarget: $ARGUMENTS\n\nRest of the body.";
+        == "---\ndescription: \"Block-led command\"\nargument-hint: \"[target]\"\n---\n\nIntro line from block\nTarget: $ARGUMENTS\n\nRest of the body.";
       detail = "expected the argument line after the first line of the interpolated block content";
     }
     {
       name = "Pi derived skill renders the command content verbatim";
       pass =
         scope.extraSkillsFromCommands."skills/demo/SKILL".embed
-        ==
-          "---\nname: \"demo\"\ndescription: \"Run demo\"\n---\n\nGoal: run the demo for $1.\n\nThe prompt keeps $1 for positional use."
+        == "---\nname: \"demo\"\ndescription: \"Run demo\"\n---\n\nGoal: run the demo for $1.\n\nThe prompt keeps $1 for positional use."
         &&
           scope.instructions."skills/demo/SKILL".embed
-          ==
-          "---\nname: \"demo\"\ndescription: \"Run demo\"\n---\n\nGoal: run the demo for $1.\n\nThe prompt keeps $1 for positional use.";
+          == "---\nname: \"demo\"\ndescription: \"Run demo\"\n---\n\nGoal: run the demo for $1.\n\nThe prompt keeps $1 for positional use.";
       detail = "expected no argument line and no argument hint in the command-derived skill";
     }
     {
@@ -212,13 +222,25 @@ let
         scope.agents.reviewer.outputPath == "agents/reviewer.md"
         &&
           scope.agents.reviewer.embed
-          == "---\nname: \"reviewer\"\ndescription: \"Review code\"\ntools: [\"read\", \"bash\"]\ndisallowed_tools: [\"write\"]\nextensions: [\"ext:tasks\"]\nexclude_extensions: [\"ext:unsafe\"]\nskills: false\nallowed_subagents: [\"explorer\"]\nmodel: \"provider/model\"\nthinking: \"high\"\npersist_session: true\nisolated: true\nisolation: \"worktree\"\n---\n\nAgent body";
+          == "---\nname: \"reviewer\"\ndescription: \"Review code\"\ntools: [\"read\", \"bash\"]\ndisallowed_tools: [\"write\"]\nextensions: [\"ext:tasks\"]\nexclude_extensions: [\"ext:unsafe\"]\nskills: false\nallowed_subagents: [\"explorer\"]\nprompt_mode: \"append\"\nmodel: \"provider/model\"\nthinking: \"high\"\npersist_session: true\nisolated: true\nisolation: \"worktree\"\n---\n\nAgent body";
       detail = "expected the tintinweb agent schema in its declared field order";
     }
     {
       name = "tintinweb rejects unsupported policy fields";
       pass = !invalidPolicy.success && !invalidPolicyValue.success;
       detail = "expected unsupported fields and invalid values to fail instead of being silently ignored";
+    }
+    {
+      name = "Pi rejects an unsupported agent prompt mode";
+      pass = !invalidPromptMode.success;
+      detail = "expected an unsupported prompt mode to fail instead of rendering";
+    }
+    {
+      name = "Pi renders an authored agent prompt mode";
+      pass =
+        scope.agents.scout.embed
+        == "---\nname: \"scout\"\ndescription: \"Scout code\"\nprompt_mode: \"replace\"\n---\n\nScout body";
+      detail = "expected the authored mode to render in place of the append default";
     }
     {
       name = "Pi rejects invalid command argument labels";

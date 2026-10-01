@@ -3,9 +3,16 @@
 let
   builders = import ../builders.nix { inherit pkgs lib; };
   output = import ../output.nix { inherit pkgs lib; };
-  harness = (import ../harnesses { inherit lib; renderFrontmatter = builders.renderFrontmatter; }).claude;
+  harness =
+    (import ../harnesses {
+      inherit lib;
+      renderFrontmatter = builders.renderFrontmatter;
+    }).claude;
   opencodeHarness =
-    (import ../harnesses { inherit lib; renderFrontmatter = builders.renderFrontmatter; }).opencode;
+    (import ../harnesses {
+      inherit lib;
+      renderFrontmatter = builders.renderFrontmatter;
+    }).opencode;
   mergeSettings.harnesses.claude.rules.output = "merge-main";
 
   mkScope = sources: settings: builders.makeScope { inherit harness sources settings; };
