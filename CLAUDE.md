@@ -24,6 +24,24 @@ Nix framework for building agentic instructions for Claude Code, OpenCode and Pi
 * When you change README examples, `examples/`, or exported behavior, keep README and `examples/` consistent and verify them against `flake.nix`, `modules/`, and `checks/default.nix`.
 * Load the `mem-writing` skill before creating or editing instructions, agents, commands, skills, rules, `CLAUDE.md`, or `AGENTS.md`.
 
+## Per-harness authoring notes
+
+* Declared `arguments`, every harness: each one injects a `<Label>: $ARGUMENTS` line after the first body line; `argument-hint` derives from the explicit hint or lowercased labels (omitted when no arguments). `$1`/`$ARGUMENTS` in body text pass through verbatim
+* pi
+  * Prompt frontmatter is `description` + `argument-hint` only — without declared arguments, invocation text is silently dropped by the harness
+  * A command with `asSkill` also emits a verbatim-derived skill that carries no argument lines or hint
+  * Skills keep only `name` + `description`; `metadata` is dropped
+* claude
+  * Command frontmatter additionally supports `model`, `effort`, `tools`, `disallowed-tools`, `permission-mode`
+* opencode
+  * Command frontmatter drops `name`, `effort`, `allowed-tools`; `context = "fork"` renders as `subtask = true`
+  * Skills keep only `name`, `description`, `metadata`
+* codex
+  * Commands render as Agent Skills (`skills/<name>/SKILL.md`) — the harness dropped custom prompts, so a command with `asSkill = true` fails the build
+  * No `argument-hint` on any artifact; agent TOML bodies must not contain `"""`
+
+Rendered output is pinned by `framework/tests/*.nix` — that is the executable spec when in doubt
+
 ## Verify
 
 * `nix flake check --show-trace` validates the framework.
