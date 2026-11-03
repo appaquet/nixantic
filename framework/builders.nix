@@ -39,10 +39,17 @@ let
         subtask = null;
         skillKey = null;
         subPath = null;
+        verbatim = false;
       }
       // args
       // {
-        content = injectCommandArgumentLines commandArguments args.content;
+        # Verbatim content is authored final bytes (a packaged SKILL.md), so command
+        # argument lines must not be injected into it.
+        content =
+          if args.verbatim or false then
+            args.content
+          else
+            injectCommandArgumentLines commandArguments args.content;
         argumentsHint = deriveArgumentsHint commandArguments;
       }
     );
@@ -195,6 +202,12 @@ let
   #     content      - Body text, placed after frontmatter.
   #     description  - Frontmatter description.
   #
+  #   File-backed skills (directory skills only)
+  #     file         - Path to an authored SKILL.md, alternative to content. The file
+  #                    is rendered verbatim: its own frontmatter is kept and neither
+  #                    post-processing nor frontmatter synthesis applies. description
+  #                    becomes optional because the file carries it.
+  #
   #   Optional (authored)
   #     name         - Display name. Defaults to directory name (skills) or
   #                    filename stem (commands).
@@ -232,6 +245,20 @@ let
     let
       kind = args.kind or "flat";
       model = args.model or null;
+
+      # A file-backed skill ships an authored SKILL.md verbatim: the file carries
+      # its own frontmatter, so post-processing and frontmatter synthesis are skipped.
+      file = args.file or null;
+      verbatim = file != null;
+      content =
+        if file == null then
+          args.content
+        else if args ? content then
+          throw "Nixantic skill '${args.name}' must set either content or file, not both"
+        else if kind != "directory" then
+          throw "Nixantic skill '${args.name}' can only use a file with directory skills"
+        else
+          builtins.readFile file;
       selectedHarnessValue = if model != null then model.${args.harness.name} or null else null;
 
       # Parse model value: can be string (model-only) or attrset (model + effort)
@@ -259,9 +286,10 @@ let
         harness
         key
         name
-        description
-        content
         ;
+      # A file-backed skill carries its own description in the file.
+      description = args.description or null;
+      inherit content verbatim;
       kind = if kind == "directory" then "skill" else "command";
       authoredOutputPath = args.outputPath or null;
       model = selectedModel;

@@ -23,6 +23,10 @@ let
       result = (import ./post-process.nix { inherit pkgs lib; }).allPass;
     }
     {
+      name = "verbatim-skill";
+      result = (import ./verbatim-skill.nix { inherit pkgs lib; }).allPass;
+    }
+    {
       name = "option-sources";
       result = (import ./option-sources.nix { inherit pkgs lib; }).allPass;
     }

@@ -71,7 +71,9 @@ in
     in
     common
     // (
-      if artifact.kind == "agent" then
+      if artifact.verbatim then
+        { embed = artifact.content; }
+      else if artifact.kind == "agent" then
         { embed = agentToml; }
       else if artifact.kind == "command" || artifact.kind == "skill" then
         {

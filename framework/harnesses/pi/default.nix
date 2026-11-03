@@ -25,7 +25,12 @@ in
 
   renderArtifact =
     artifact:
-    if artifact.kind == "instruction" then
+    if artifact.verbatim then
+      {
+        outputPath = "skills/${artifact.key}/SKILL.md";
+        embed = artifact.content;
+      }
+    else if artifact.kind == "instruction" then
       {
         outputPath =
           if artifact.role == "main" then

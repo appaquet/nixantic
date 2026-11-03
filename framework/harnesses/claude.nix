@@ -111,8 +111,14 @@ in
         ];
       };
     in
-    common
-    // (
+    if artifact.verbatim then
+      {
+        inherit (common) outputPath;
+        embed = artifact.content;
+      }
+    else
+      common
+      // (
       if artifact.kind == "instruction" || artifact.kind == "skillFile" then
         {
           frontmatter = { };
