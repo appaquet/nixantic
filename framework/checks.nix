@@ -41,6 +41,40 @@ let
     postProcess = false;
   };
 
+  directoryFixture = import ./tests/directory-skill.nix { inherit pkgs lib; };
+  directoryPackageCheck =
+    pkgs.runCommand "directory-skill-package-check"
+      {
+        nativeBuildInputs = [
+          pkgs.nodejs
+          pkgs.python3
+        ];
+      }
+      ''
+        for harness in claude codex opencode pi; do
+          skill=${directoryFixture.package}/"$harness"/skills/external
+          diff -r ${directoryFixture.directory} "$skill"
+          test -x "$skill/read-sibling.cjs"
+          test "$(node "$skill/read-sibling.cjs")" = 'sibling data.'
+        done
+        python3 - ${directoryFixture.package} <<'PY'
+        import pathlib
+        import sys
+
+        for harness in ("claude", "codex", "opencode", "pi"):
+            report = (pathlib.Path(sys.argv[1]) / harness / "BOM.md").read_text()
+            rows = report.split("## Per-file rows\n", 1)[1].split("## Root/main", 1)[0]
+            files = [line.split("|")[1:-1] for line in rows.splitlines() if line.startswith("| ")]
+            values = {cells[1].strip(): cells[2].strip() for cells in files[2:]}
+            assert values["skills/external/data.bin"] == "not counted (binary)", values
+            counted = sum(int(value) for value in values.values() if value.isdecimal())
+            total = report.split("## Harness total\n", 1)[1].split("## Category totals", 1)[0]
+            assert f"| {len(values)} | {counted} |" in total, total
+            assert sum(name.startswith("skills/external/") for name in values) == 6, values
+        PY
+        touch "$out"
+      '';
+
   renderedPackageCheck = pkgs.runCommand "rendered-package-check" { } ''
     test -f ${renderedPackage}/claude/CLAUDE.md
     test -f ${renderedPackage}/claude/BOM.md
@@ -188,6 +222,7 @@ pkgs.runCommand "nixantic-instructions-check" { } ''
   : ${badRefCheck}
   : ${missingVendoredEncodingCheck}
   : ${renderedPackageCheck}
+  : ${directoryPackageCheck}
   : ${codexAgentTomlCheck}
   : ${package}
   touch $out

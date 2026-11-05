@@ -110,9 +110,14 @@ let
         let
           harnessName = scope.harness.name or scope.harness.outputDir;
           filename = resolveFilename path item;
-          # Raw entries are harness-owned final bytes (e.g. Codex agent TOML);
-          # only frontmatter-assembled content gets markdown cleanup.
-          content = if item.raw or false then item.embed else process item.embed;
+          sourceBacked = item ? sourcePath;
+          content =
+            if sourceBacked then
+              null
+            else if item.raw or false then
+              item.embed
+            else
+              process item.embed;
         in
         {
           inherit content source;
@@ -121,8 +126,13 @@ let
           relativePath = filename;
           destination = "${scope.harness.outputDir}/${filename}";
           category = classifyEntry item.kind;
-          file = mkFile scope.harness.outputDir path filename content;
-        };
+          file =
+            if sourceBacked then
+              mkSkillDirectory scope.harness.outputDir item.skillKey item.sourceDirectory
+            else
+              mkFile scope.harness.outputDir path filename content;
+        }
+        // lib.optionalAttrs sourceBacked { sourcePath = toString item.sourcePath; };
       mkRootFileEntry =
         scope: relativePath: content:
         let
@@ -167,14 +177,18 @@ let
         let
           harnessName = scope.harness.name or scope.harness.outputDir;
         in
-        builtins.map (entry: {
-          inherit (entry)
-            category
-            content
-            relativePath
-            source
-            ;
-        }) (builtins.filter (entry: entry.harnessName == harnessName) fileEntries)
+        builtins.map (
+          entry:
+          {
+            inherit (entry)
+              category
+              content
+              relativePath
+              source
+              ;
+          }
+          // lib.optionalAttrs (entry ? sourcePath) { inherit (entry) sourcePath; }
+        ) (builtins.filter (entry: entry.harnessName == harnessName) fileEntries)
       ) scopes;
 
       bomFiles = lib.mapAttrsToList (
@@ -187,7 +201,7 @@ let
           bomEntries.${harnessName}
       ) scopes;
 
-      allFiles = (map (entry: entry.file) fileEntries) ++ bomFiles;
+      allFiles = (lib.unique (map (entry: entry.file) fileEntries)) ++ bomFiles;
     in
     assert
       duplicateDestinations == [ ]
@@ -200,6 +214,15 @@ let
         entries = bomEntries;
       };
     };
+
+  # A shared source tree keeps executable assets and sibling-relative lookups intact.
+  mkSkillDirectory =
+    harnessDir: skillKey: sourceDirectory:
+    pkgs.runCommand (builtins.replaceStrings [ "/" ] [ "-" ] "${harnessDir}-skill-${skillKey}") { } ''
+      destination="$out"/${lib.escapeShellArg "${harnessDir}/skills/${skillKey}"}
+      mkdir -p "$destination"
+      cp -R ${lib.escapeShellArg "${sourceDirectory}/."} "$destination/"
+    '';
 
   mkBomFile =
     scope: encoding: tiktokenPackage: encodingPath: encodingHash: entries:

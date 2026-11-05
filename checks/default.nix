@@ -198,6 +198,10 @@ in
       test -f ${package}/opencode/commands/review.md
       grep -F '## Project conventions' ${package}/opencode/commands/review.md
       grep -F 'Keep fragments self-contained' ${package}/opencode/commands/review.md
+      diff -r ${../examples/opencode/_support/external-reference} ${package}/opencode/skills/external-reference
+      test ! -e ${package}/claude/skills/external-reference
+      test ! -e ${package}/codex/skills/external-reference
+      test ! -e ${package}/pi/skills/external-reference
       test -f ${package}/opencode/skills/review/SKILL.md
       grep -F 'name: "review"' ${package}/opencode/skills/review/SKILL.md
       grep -F '## Project conventions' ${package}/opencode/skills/review/SKILL.md

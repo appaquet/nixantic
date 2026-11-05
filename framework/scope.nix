@@ -112,7 +112,11 @@ let
       ) selectedSources.commands;
       rawSkills = lib.mapAttrs (
         key: entry:
-        if !(builtins.isAttrs entry) || !(builtins.hasAttr "main" entry) then
+        if !(builtins.isAttrs entry) then
+          throw "Nixantic skill '${key}' must be an attrset with main or directory"
+        else if entry ? directory then
+          normalizeDirectorySkill key entry
+        else if !(entry ? main) then
           throw "Nixantic skill '${key}' must be an attrset with a main attribute"
         else
           entry
@@ -172,17 +176,29 @@ let
 
     skills = lib.mapAttrs (
       key: entry:
-      self.scopeApi.mkSkill (
-        {
-          harness = self.harness;
-          inherit key;
-          kind = "directory";
-        }
-        // entry.main
+      let
+        main = self.scopeApi.mkSkill (
+          {
+            harness = self.harness;
+            inherit key;
+            kind = "directory";
+          }
+          // entry.main
+          // {
+            name = key;
+          }
+        );
+      in
+      if entry ? directory then
+        assert builtins.length entry.directoryFiles > 0;
+        main
         // {
-          name = key;
+          sourceDirectory = entry.directory;
+          sourcePath = "${entry.directory}/SKILL.md";
+          skillKey = key;
         }
-      )
+      else
+        main
     ) (filterSkillsForHarness self self.rawSkills);
 
     skillFiles = builtins.listToAttrs (
@@ -194,7 +210,15 @@ let
             let
               fullPath = "skills/${skillKey}/${subPath}";
               processed =
-                if subData.kind == "nix" then
+                if subData ? sourcePath then
+                  {
+                    kind = "skillFile";
+                    outputPath = fullPath;
+                    sourcePath = subData.sourcePath;
+                    sourceDirectory = entry.directory;
+                    inherit skillKey;
+                  }
+                else if subData.kind == "nix" then
                   self.scopeApi.mkSkillFile {
                     inherit (self) harness;
                     key = fullPath;
@@ -473,6 +497,62 @@ let
       }
     else
       value;
+
+  # Directory skills are opaque source trees; companion Nix files are never imported.
+  normalizeDirectorySkill =
+    key: entry:
+    let
+      unsupported = builtins.attrNames (
+        builtins.removeAttrs entry [
+          "directory"
+          "harnesses"
+          "when"
+        ]
+      );
+      directoryFiles = readSkillDirectory key entry.directory;
+    in
+    if unsupported != [ ] then
+      throw "Nixantic directory skill '${key}' cannot set ${builtins.concatStringsSep ", " unsupported}; use directory with optional harnesses and when"
+    else
+      {
+        inherit (entry) directory;
+        inherit directoryFiles;
+        main = {
+          file = "${entry.directory}/SKILL.md";
+        }
+        // builtins.intersectAttrs {
+          harnesses = null;
+          when = null;
+        } entry;
+        files = lib.genAttrs (builtins.filter (path: path != "SKILL.md") directoryFiles) (path: {
+          sourcePath = "${entry.directory}/${path}";
+        });
+      };
+
+  readSkillDirectory =
+    key: directory:
+    let
+      root = builtins.readDir directory;
+      walk =
+        prefix: entries:
+        lib.concatMap (
+          name:
+          let
+            path = if prefix == "" then name else "${prefix}/${name}";
+            type = entries.${name};
+          in
+          if type == "regular" then
+            [ path ]
+          else if type == "directory" then
+            walk path (builtins.readDir "${directory}/${path}")
+          else
+            throw "Nixantic directory skill '${key}' contains unsupported ${type} at '${path}'; only regular files and directories are supported"
+        ) (builtins.attrNames entries);
+    in
+    if (root."SKILL.md" or null) != "regular" then
+      throw "Nixantic directory skill '${key}' requires a regular SKILL.md at its root"
+    else
+      walk "" root;
 
   emptySources = {
     blocks = { };

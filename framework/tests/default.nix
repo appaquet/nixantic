@@ -27,6 +27,10 @@ let
       result = (import ./verbatim-skill.nix { inherit pkgs lib; }).allPass;
     }
     {
+      name = "directory-skill";
+      result = (import ./directory-skill.nix { inherit pkgs lib; }).allPass;
+    }
+    {
       name = "option-sources";
       result = (import ./option-sources.nix { inherit pkgs lib; }).allPass;
     }

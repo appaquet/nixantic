@@ -31,8 +31,9 @@ def escape_cell(value):
     return str(value).replace("|", "\\|").replace("\n", " ")
 
 
-def count_tokens(encoding, content):
-    return len(encoding.encode(content))
+def count_tokens(encoding, content, *, ordinary=False):
+    encode = encoding.encode_ordinary if ordinary else encoding.encode
+    return len(encode(content))
 
 
 def load_encoding(encoding_name, encoding_path, encoding_hash):
@@ -74,18 +75,32 @@ def main():
     encoding_name = manifest["encoding"]
     encoding = load_encoding(encoding_name, manifest["encodingPath"], manifest["encodingHash"])
     entries = sorted(manifest["entries"], key=lambda entry: entry["relativePath"])
-    counted = [entry | {"tokens": count_tokens(encoding, entry["content"])} for entry in entries]
+    counted = []
+    for entry in entries:
+        content = entry["content"]
+        if content is None:
+            try:
+                with open(entry["sourcePath"], encoding="utf-8", newline="") as source_file:
+                    content = source_file.read()
+            except UnicodeDecodeError:
+                content = None
+        tokens = (
+            count_tokens(encoding, content, ordinary=entry["content"] is None)
+            if content is not None and "\x00" not in content
+            else None
+        )
+        counted.append(entry | {"tokens": tokens})
 
-    total_tokens = sum(entry["tokens"] for entry in counted)
+    total_tokens = sum(entry["tokens"] or 0 for entry in counted)
     category_rows = []
     for category in CATEGORY_ORDER:
         category_entries = [entry for entry in counted if entry["category"] == category]
         category_rows.append(
-            [CATEGORY_LABELS[category], len(category_entries), sum(entry["tokens"] for entry in category_entries)]
+            [CATEGORY_LABELS[category], len(category_entries), sum(entry["tokens"] or 0 for entry in category_entries)]
         )
 
     file_rows = [
-        [CATEGORY_LABELS[entry["category"]], entry["relativePath"], entry["tokens"]]
+        [CATEGORY_LABELS[entry["category"]], entry["relativePath"], entry["tokens"] if entry["tokens"] is not None else "not counted (binary)"]
         for entry in counted
     ]
     root_rows = [
@@ -103,7 +118,7 @@ def main():
         f"# Instruction BOM: {manifest['harness']}",
         (
             f"Estimated token counts using tiktoken encoding `{encoding_name}`. "
-            "These counts are planning estimates, not provider-authoritative context billing."
+            "These counts are planning estimates, not provider-authoritative context billing. Binary assets are listed as not counted and excluded from token totals."
         ),
         "## Harness total",
         table(["Files", "Estimated tokens"], [[len(counted), total_tokens]]),
