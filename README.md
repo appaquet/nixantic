@@ -11,7 +11,6 @@ Nix framework for building agentic instructions for Claude Code, OpenCode, Codex
 * Reusable instruction blocks (XML or literal) with validated references at generation time, with
   ability to inject them automatically into workflows.
 * Conditional content based on harnesses, version control (jj or git) or your own parameters.
-* Bill of Materials (BOM) output for each harness, with a breakdown of token usage.
 * Home manager plugin to reference generated files and install them into your harness directories.
 
 ## Usage
@@ -67,9 +66,9 @@ nixantic.sources.external.skills.example = {
 
 Consumers fetch and pin `skillSource`; Nixantic does not download skills. The directory must contain a regular `SKILL.md` at its root. Its declaration key determines `skills/<key>/` in each selected harness, so choose a key matching the upstream skill name. `directory` cannot be combined with `main`, `files`, or other authored fields except `harnesses` and `when`.
 
-Directory skills copy the complete source tree unchanged, including nested and binary assets and executable bits. `.nix` companions are data, not imported fragments. Symlinks and special files are rejected. Keep dependencies and license packaging in the consumer configuration. Source inventory may realize a fetched derivation during evaluation, as with a file-backed main skill.
+Directory skills copy the complete source tree unchanged, including nested and binary assets and executable bits. `.nix` companions are data, not imported fragments. Symlinks and special files are rejected. Keep dependencies and license packaging in the consumer configuration. The declared directory may be any derivation, including per-platform fetches: Nixantic never reads the source tree during evaluation and uses only its path string. At build time the tree is copied verbatim into `skills/<key>/` for each selected harness, and the contract is checked there with a clear error: a regular `SKILL.md` at the root, regular files and directories only, no symlinks.
 
-Post-processing does not apply to directory skills. Existing authored skills and `main.file` declarations retain their behavior. The BOM inventories every file, counts UTF-8 text at build time, and labels non-UTF-8 or NUL-containing assets `not counted (binary)` rather than including them in token totals. See `examples/opencode/skills.nix` for a complete local example.
+Post-processing does not apply to directory skills. Existing authored skills and `main.file` declarations retain their behavior. See `examples/opencode/skills.nix` for a complete local example.
 
 The Home Manager module discovers every fragment file under `nixantic.sourceRoots` and renders a package of harness trees. Symlink the files you want into your harness directories:
 
