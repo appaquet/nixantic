@@ -71,24 +71,6 @@ let
       ) (builtins.attrValues scopes);
     }
     {
-      name = "directory manifest includes every path once and preserves categories";
-      pass = lib.all (
-        allEntries:
-        let
-          entries = builtins.filter (entry: lib.hasPrefix "skills/external/" entry.relativePath) allEntries;
-        in
-        builtins.sort builtins.lessThan (map (entry: entry.relativePath) entries)
-        == map (name: "skills/external/${name}") inventory
-        && builtins.all (
-          entry:
-          entry.category
-          == (if entry.relativePath == "skills/external/SKILL.md" then "skills" else "skillSubfiles")
-          && entry ? sourcePath
-          && entry.content == null
-        ) entries
-      ) (builtins.attrValues package.passthru.bom.entries);
-    }
-    {
       name = "selectors include or exclude the entire directory";
       pass = lib.all (
         name:

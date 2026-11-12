@@ -3,6 +3,7 @@
   pkgs,
   lib,
   testResult,
+  packageChecks ? [ ],
 }:
 
 # Generic check derivation for the renderer. Output assertions belong with the
@@ -10,21 +11,11 @@
 
 let
   tooling = import ./builders.nix { inherit pkgs lib; };
-  bomRendererPython = pkgs.python3.withPackages (_: [ pkgs.python3Packages.tiktoken ]);
   sourceSets = import ../source-sets.nix;
   harnesses = import ./harnesses {
     inherit lib;
     renderFrontmatter = tooling.renderFrontmatter;
   };
-  missingVendoredEncodingManifest = pkgs.writeText "missing-vendored-encoding-manifest.json" (
-    builtins.toJSON {
-      harness = "claude";
-      encoding = "cl100k_base";
-      encodingPath = "/definitely/missing-cl100k_base.tiktoken";
-      encodingHash = "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7";
-      entries = [ ];
-    }
-  );
 
   renderedPackageSources = tooling.normalizeSourceDeclarations (
     sourceSets.resolveSources { sourceRoots = [ ./tests/fixtures/rendered-package ]; }
@@ -45,10 +36,7 @@ let
   directoryPackageCheck =
     pkgs.runCommand "directory-skill-package-check"
       {
-        nativeBuildInputs = [
-          pkgs.nodejs
-          pkgs.python3
-        ];
+        nativeBuildInputs = [ pkgs.nodejs ];
       }
       ''
         for harness in claude codex opencode pi; do
@@ -57,31 +45,14 @@ let
           test -x "$skill/read-sibling.cjs"
           test "$(node "$skill/read-sibling.cjs")" = 'sibling data.'
         done
-        python3 - ${directoryFixture.package} <<'PY'
-        import pathlib
-        import sys
-
-        for harness in ("claude", "codex", "opencode", "pi"):
-            report = (pathlib.Path(sys.argv[1]) / harness / "BOM.md").read_text()
-            rows = report.split("## Per-file rows\n", 1)[1].split("## Root/main", 1)[0]
-            files = [line.split("|")[1:-1] for line in rows.splitlines() if line.startswith("| ")]
-            values = {cells[1].strip(): cells[2].strip() for cells in files[2:]}
-            assert values["skills/external/data.bin"] == "not counted (binary)", values
-            counted = sum(int(value) for value in values.values() if value.isdecimal())
-            total = report.split("## Harness total\n", 1)[1].split("## Category totals", 1)[0]
-            assert f"| {len(values)} | {counted} |" in total, total
-            assert sum(name.startswith("skills/external/") for name in values) == 6, values
-        PY
         touch "$out"
       '';
 
   renderedPackageCheck = pkgs.runCommand "rendered-package-check" { } ''
     test -f ${renderedPackage}/claude/CLAUDE.md
-    test -f ${renderedPackage}/claude/BOM.md
     test -f ${renderedPackage}/claude/commands/safe-command.md
     test ! -e ${renderedPackage}/claude/skills/safe-command/SKILL.md
     test -f ${renderedPackage}/opencode/AGENTS.md
-    test -f ${renderedPackage}/opencode/BOM.md
     test -f ${renderedPackage}/opencode/.gitignore
     test -f ${renderedPackage}/opencode/commands/safe-command.md
     test -f ${renderedPackage}/opencode/skills/safe-command/SKILL.md
@@ -93,7 +64,6 @@ let
     test -f ${renderedPackage}/pi/skills/safe-skill/SKILL.md
     test -f ${renderedPackage}/pi/skills/safe-skill/refs/example.md
     test -f ${renderedPackage}/codex/AGENTS.md
-    test -f ${renderedPackage}/codex/BOM.md
     test -f ${renderedPackage}/codex/skills/safe-command/SKILL.md
     test -f ${renderedPackage}/codex/skills/safe-skill/SKILL.md
     test -f ${renderedPackage}/codex/skills/safe-skill/refs/example.md
@@ -118,38 +88,8 @@ let
     grep -F 'name: "safe-skill"' ${renderedPackage}/pi/skills/safe-skill/SKILL.md
     test ! -s ${renderedPackage}/opencode/.gitignore
     grep -F 'Bundled reference body.' ${renderedPackage}/opencode/skills/safe-skill/refs/example.md
-    grep -F '# Instruction BOM: claude' ${renderedPackage}/claude/BOM.md
-    grep -F 'Estimated token counts using tiktoken encoding `cl100k_base`' ${renderedPackage}/claude/BOM.md
-    grep -F 'not provider-authoritative context billing' ${renderedPackage}/claude/BOM.md
-    grep -F '| Generated instructions | 1 |' ${renderedPackage}/claude/BOM.md
-    grep -F '| Commands | 1 |' ${renderedPackage}/claude/BOM.md
-    grep -F '| Skills | 2 |' ${renderedPackage}/opencode/BOM.md
-    grep -F '| Skill subfiles | 1 |' ${renderedPackage}/opencode/BOM.md
-    grep -F '| skills/safe-skill/refs/example.md |' ${renderedPackage}/opencode/BOM.md
-    grep -F '## Root/main instruction summary' ${renderedPackage}/claude/BOM.md
-    grep -F '## Per-command file-cost' ${renderedPackage}/claude/BOM.md
-    ! grep -F '| BOM.md |' ${renderedPackage}/claude/BOM.md
     touch $out
   '';
-
-  missingVendoredEncodingCheck =
-    pkgs.runCommand "missing-vendored-encoding-check"
-      {
-        nativeBuildInputs = [ bomRendererPython ];
-      }
-      ''
-        err="$TMPDIR/missing-vendored-encoding.err"
-        python ${./render-bom.py} ${missingVendoredEncodingManifest} "$TMPDIR/BOM.md" 2>"$err" && {
-          echo "FAIL: missing vendored encoding asset should have failed" >&2
-          exit 1
-        }
-        grep -F 'Missing local tiktoken encoding asset for BOM generation' "$err" || {
-          echo "FAIL: missing vendored encoding asset failed for an unexpected reason" >&2
-          cat "$err" >&2
-          exit 1
-        }
-        touch $out
-      '';
 
   codexAgentToml =
     let
@@ -217,13 +157,16 @@ let
         touch $out
       '';
 in
+let
+  checkLines = builtins.concatStringsSep "\n" (map (c: "  : ${c}") packageChecks);
+in
 pkgs.runCommand "nixantic-instructions-check" { } ''
   : ${testResult}
   : ${badRefCheck}
-  : ${missingVendoredEncodingCheck}
   : ${renderedPackageCheck}
   : ${directoryPackageCheck}
   : ${codexAgentTomlCheck}
+  ${checkLines}
   : ${package}
   touch $out
 ''

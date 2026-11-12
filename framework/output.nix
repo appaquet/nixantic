@@ -8,11 +8,6 @@
 */
 
 let
-  vendoredCl100kBaseHash = "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7";
-  vendoredCl100kBase = pkgs.fetchurl {
-    url = "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken";
-    hash = "sha256-Ijkht27pm96ZW3/3OFE+7xAPtR0YyTWXoRO8/+hlsqc=";
-  };
 
   # postProcessContent :: string -> string
   #   Cleans up generated markdown output. Applied when mkPackage is called
@@ -57,7 +52,7 @@ let
       destination = "/${dir}/${filename}";
     };
 
-  # mkPackage :: { scopes, postProcess ? false, bom ? { ... } } -> derivation
+  # mkPackage :: { scopes, postProcess ? false } -> derivation
   #   Assembles all harness scopes into a single symlinkJoin package.
   #
   #   For each scope, processes two instruction sources:
@@ -70,25 +65,13 @@ let
   #   postProcess: when true, applies postProcessContent to every file's embed
   #     before writing. Useful for agent-to-human output where agents may emit
   #     blank lines or `.` sentinels. Raw (harness-owned) entries skip this step.
-  #
-  #   bom: package/render-only bill-of-materials export.
-  #     Uses tiktoken with an encoding-first configuration and writes one
-  #     estimated-count markdown report to each harness root.
   mkPackage =
     {
       scopes,
       postProcess ? false,
-      bom ? { },
     }:
     let
       process = if postProcess then postProcessContent else (x: x);
-      bomConfig = {
-        encoding = "cl100k_base";
-        encodingPath = vendoredCl100kBase;
-        encodingHash = vendoredCl100kBaseHash;
-        tiktokenPackage = pkgs.python3Packages.tiktoken;
-      }
-      // bom;
       resolveFilename =
         path: item: if item ? outputPath && item.outputPath != null then item.outputPath else "${path}.md";
       classifyEntry =
@@ -161,47 +144,16 @@ let
         ) scopes
       );
 
-      bomDestinations = lib.mapAttrsToList (_: scope: "${scope.harness.outputDir}/BOM.md") scopes;
-
       duplicateDestinations =
         let
-          destinations = (map (entry: entry.destination) fileEntries) ++ bomDestinations;
+          destinations = map (entry: entry.destination) fileEntries;
           grouped = lib.groupBy (destination: destination) destinations;
         in
         builtins.filter (destination: builtins.length grouped.${destination} > 1) (
           builtins.attrNames grouped
         );
 
-      bomEntries = lib.mapAttrs (
-        _: scope:
-        let
-          harnessName = scope.harness.name or scope.harness.outputDir;
-        in
-        builtins.map (
-          entry:
-          {
-            inherit (entry)
-              category
-              content
-              relativePath
-              source
-              ;
-          }
-          // lib.optionalAttrs (entry ? sourcePath) { inherit (entry) sourcePath; }
-        ) (builtins.filter (entry: entry.harnessName == harnessName) fileEntries)
-      ) scopes;
-
-      bomFiles = lib.mapAttrsToList (
-        _: scope:
-        let
-          harnessName = scope.harness.name or scope.harness.outputDir;
-        in
-        mkBomFile scope bomConfig.encoding bomConfig.tiktokenPackage bomConfig.encodingPath
-          bomConfig.encodingHash
-          bomEntries.${harnessName}
-      ) scopes;
-
-      allFiles = (lib.unique (map (entry: entry.file) fileEntries)) ++ bomFiles;
+      allFiles = lib.unique (map (entry: entry.file) fileEntries);
     in
     assert
       duplicateDestinations == [ ]
@@ -209,10 +161,6 @@ let
     pkgs.symlinkJoin {
       name = "nixantic-instructions";
       paths = allFiles;
-      passthru.bom = {
-        encoding = bomConfig.encoding;
-        entries = bomEntries;
-      };
     };
 
   # A shared source tree keeps executable assets and sibling-relative lookups intact.
@@ -224,38 +172,11 @@ let
       cp -R ${lib.escapeShellArg "${sourceDirectory}/."} "$destination/"
     '';
 
-  mkBomFile =
-    scope: encoding: tiktokenPackage: encodingPath: encodingHash: entries:
-    let
-      harnessName = scope.harness.name or scope.harness.outputDir;
-      manifest = pkgs.writeText "${scope.harness.outputDir}-bom-manifest.json" (
-        builtins.toJSON {
-          harness = harnessName;
-          inherit encoding encodingHash entries;
-          encodingPath = toString encodingPath;
-        }
-      );
-      python = pkgs.python3.withPackages (_: [ tiktokenPackage ]);
-    in
-    pkgs.runCommand "${scope.harness.outputDir}-bom"
-      {
-        nativeBuildInputs = [ python ];
-      }
-      ''
-        if [ ! -f ${lib.escapeShellArg (toString encodingPath)} ]; then
-          echo "missing local tiktoken encoding asset: ${toString encodingPath}" >&2
-          exit 1
-        fi
-
-        mkdir -p "$out/${scope.harness.outputDir}"
-        python ${./render-bom.py} ${manifest} "$out/${scope.harness.outputDir}/BOM.md"
-      '';
 in
 {
   inherit
     postProcessContent
     mkFile
     mkPackage
-    mkBomFile
     ;
 }

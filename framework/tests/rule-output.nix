@@ -131,7 +131,15 @@ let
     } mergeSettings;
     postProcess = true;
   };
-  postProcessedContent = builtins.head postProcessed.passthru.bom.entries.claude;
+  # Merged content is post-processed exactly once at package assembly.
+  packageCheck = pkgs.runCommand "rule-output-package-check" { } ''
+    cmp ${postProcessed}/claude/CLAUDE.md <(
+      printf '%s' '# Main
+Main
+Rule.'
+    )
+    touch $out
+  '';
   unknownHarnessSettings = builtins.tryEval (
     (import ../default.nix {
       inherit pkgs lib;
@@ -197,11 +205,6 @@ let
       detail = "expected an instruction override and command to collide at commands/shared.md";
     }
     {
-      name = "merged content is post-processed exactly once";
-      pass = postProcessedContent.content == "# Main\nMain\nRule.";
-      detail = "expected Rule.. to retain one trailing dot after one post-processing pass";
-    }
-    {
       name = "framework validates configured harnesses and rule output values";
       pass = !unknownHarnessSettings.success && !invalidRuleOutput.success && !invalidRole.success;
       detail = "expected unknown harness keys, invalid output values, and invalid roles to fail";
@@ -211,5 +214,5 @@ let
   allPass = builtins.foldl' (acc: case: acc && checkCase case) true cases;
 in
 {
-  inherit allPass;
+  inherit allPass packageCheck;
 }

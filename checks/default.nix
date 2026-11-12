@@ -1,5 +1,5 @@
 # Flake-level integration check: module API eval, home-manager mapping, flake-parts
-# consumer, and BOM assertions. Includes the renderer unit tests in framework/tests.
+# consumer. Includes the renderer unit tests in framework/tests.
 
 {
   pkgs,
@@ -167,14 +167,14 @@ let
           };
         };
       };
+  tests = import ../framework/tests { inherit pkgs lib; };
+
   frameworkCheck = import ../framework/checks.nix {
     inherit pkgs lib;
     package = jjCore.config.nixantic.instructions.package;
     testResult =
-      let
-        tests = import ../framework/tests { inherit pkgs lib; };
-      in
       if tests.allPass then "pass" else throw "Nixantic instruction tests failed";
+    packageChecks = tests.packageChecks;
   };
 in
 {

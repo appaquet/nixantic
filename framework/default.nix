@@ -2,7 +2,6 @@
   pkgs,
   lib,
   postProcess ? false,
-  bom ? { },
   sourceRoots ? [ ],
   sources ? { },
   settings ? { },
@@ -131,7 +130,7 @@ let
   instructions = lib.mapAttrs (_: scope: scope.instructions) scopes;
   blocks = lib.mapAttrs (_: scope: scope.blocks) scopes;
 
-  package = instructionApi.mkPackage { inherit scopes postProcess bom; };
+  package = instructionApi.mkPackage { inherit scopes postProcess; };
 
   check = pkgs.runCommand "nixantic-configured-instructions-check" { } ''
     : ${package}

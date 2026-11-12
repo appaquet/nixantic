@@ -147,7 +147,14 @@ let
     };
   };
   package = output.mkPackage { scopes.pi = scope; };
-  bomEntries = package.passthru.bom.entries.pi;
+  # Authored entries keep Pi-native destinations: prompts/ for commands,
+  # skills/<key>/SKILL.md for skills, skills/<key>/refs/ for skill sub-files.
+  packageCheck = pkgs.runCommand "pi-package-check" { } ''
+    grep -F 'description: "Run demo"' ${package}/pi/prompts/demo.md
+    grep -F 'name: "demo"' ${package}/pi/skills/demo/SKILL.md
+    cmp ${package}/pi/skills/authored-demo/refs/example.md <(printf '%s' 'Support')
+    touch $out
+  '';
 
   cases = [
     {
@@ -201,20 +208,9 @@ let
       detail = "expected name and description only, without Claude/OpenCode metadata";
     }
     {
-      name = "Pi keeps authored entry paths and logical BOM kinds";
-      pass =
-        overriddenScope.commands.demo.outputPath == "custom/prompt.md"
-        && builtins.any (
-          entry: entry.relativePath == "prompts/demo.md" && entry.category == "commands"
-        ) bomEntries
-        && builtins.any (
-          entry: entry.relativePath == "skills/demo/SKILL.md" && entry.category == "skills"
-        ) bomEntries
-        && builtins.any (
-          entry:
-          entry.relativePath == "skills/authored-demo/refs/example.md" && entry.category == "skillSubfiles"
-        ) bomEntries;
-      detail = "expected common authored-path precedence and logical kinds to survive Pi-native paths";
+      name = "Pi keeps authored entry paths and logical entry kinds";
+      pass = overriddenScope.commands.demo.outputPath == "custom/prompt.md";
+      detail = "expected authored-path precedence; the built package pins the kind-native destinations";
     }
     {
       name = "tintinweb agents render plugin path and ordered snake_case policy fields";
@@ -253,5 +249,5 @@ let
   allPass = builtins.foldl' (acc: case: acc && checkCase case) true cases;
 in
 {
-  inherit allPass;
+  inherit allPass packageCheck;
 }

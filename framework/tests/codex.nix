@@ -70,11 +70,21 @@ let
     scopes.codex = scope;
     postProcess = true;
   };
-  postProcessedAgent = builtins.head (
-    builtins.filter (
-      entry: entry.relativePath == "agents/reviewer.toml"
-    ) postProcessed.passthru.bom.entries.codex
-  );
+  # Raw harness-owned entries skip post-processing, so the TOML bytes keep
+  # their trailing periods.
+  packageCheck = pkgs.runCommand "codex-package-check" { } ''
+    cmp ${postProcessed}/codex/agents/reviewer.toml <(
+      printf '%s' 'name = "reviewer"
+description = "Review code"
+developer_instructions = """
+First line.
+Second line.
+"""
+model = "provider/model"
+model_reasoning_effort = "high"'
+    )
+    touch $out
+  '';
 
   cases = [
     {
@@ -121,11 +131,6 @@ let
       detail = "expected the authored-relative sub-file path and the raw sub-file content";
     }
     {
-      name = "Codex embed entries skip post-processing";
-      pass = postProcessedAgent.content == scope.agents.reviewer.embed;
-      detail = "expected harness-owned TOML bytes to survive postProcess untouched, including the trailing period";
-    }
-    {
       name = "Codex rejects a command and asSkill skill that resolve to the same skill file";
       pass = !collision.success;
       detail = "expected the shared skills/<name>/SKILL.md destination to fail package assembly";
@@ -136,5 +141,5 @@ let
   allPass = builtins.foldl' (acc: case: acc && checkCase case) true cases;
 in
 {
-  inherit allPass;
+  inherit allPass packageCheck;
 }

@@ -37,7 +37,11 @@ let
     };
     postProcess = true;
   };
-  postProcessedEntry = builtins.head postProcessedPackage.passthru.bom.entries.claude;
+  # The rendered SKILL.md keeps the authored bytes verbatim.
+  packageCheck = pkgs.runCommand "verbatim-skill-package-check" { } ''
+    cmp ${postProcessedPackage}/claude/skills/packaged/SKILL.md ${skillFile}
+    touch $out
+  '';
 
   contentBackedSkill =
     (builders.makeScope {
@@ -83,10 +87,6 @@ let
       pass = lib.all (harness: (fileBackedSkill harness).raw) harnessNames;
     }
     {
-      name = "post-processing leaves a verbatim skill untouched";
-      pass = postProcessedEntry.content == authoredBytes && postProcessedEntry.relativePath == "skills/packaged/SKILL.md";
-    }
-    {
       name = "content-backed skills still get synthesized frontmatter";
       pass = contentBackedSkill.embed == "---\nname: \"authored\"\ndescription: \"Authored skill\"\n---\n\nBody.";
     }
@@ -109,4 +109,5 @@ let
 in
 {
   allPass = builtins.foldl' (acc: case: acc && checkCase case) true cases;
+  inherit packageCheck;
 }

@@ -35,7 +35,6 @@ let
   rendered = import ../framework {
     inherit pkgs lib;
     postProcess = instructionCfg.postProcess;
-    bom = instructionCfg.bom;
     sourceRoots = cfg.sourceRoots;
     sources = cfg.sources;
     settings = {
@@ -110,12 +109,6 @@ in
         type = lib.types.bool;
         default = true;
         description = "Apply markdown post-processing to generated instruction files.";
-      };
-
-      bom = lib.mkOption {
-        type = lib.types.lazyAttrsOf lib.types.raw;
-        default = { };
-        description = "BOM renderer overrides, including encoding metadata.";
       };
 
       harnesses = {
