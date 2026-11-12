@@ -11,7 +11,6 @@
   forSetting,
   renderFrontmatter,
   lib,
-  pkgs,
 }:
 
 /*
@@ -137,7 +136,7 @@ let
   #   blocks     — all blocks → mkBlock (no filtering)
   #   agents     — filtered rawAgents → mkAgent(harness, name)
   #   commands   — filtered rawCommands → block-reference injection → mkCommand(harness, kind, outputPath, name)
-  #   skills     — filtered rawSkills → mkSkill(harness, kind="directory", outputPath, name)
+  #   skills     — filtered rawSkills → mkSkill(harness, kind, outputPath, name); directory skills stay opaque at eval
   #   skillFiles — filtered skill sub-files → mkSkillFile (nix) or raw pass-through (md)
   addProcessedContent = self: {
     blocks = lib.mapAttrs (_: data: self.scopeApi.mkBlock data) self.rawBlocks;
@@ -182,6 +181,9 @@ let
             harness = self.harness;
             inherit key;
             kind = "directory";
+            # Directory skills forward the source path into the constructor so
+            # its content is read only at build time, never at eval.
+            sourceDirectory = entry.directory or null;
           }
           // entry.main
           // {
@@ -190,10 +192,8 @@ let
         );
       in
       if entry ? directory then
-        assert builtins.length entry.directoryFiles > 0;
         main
         // {
-          sourceDirectory = entry.directory;
           sourcePath = "${entry.directory}/SKILL.md";
           skillKey = key;
         }
@@ -210,15 +210,7 @@ let
             let
               fullPath = "skills/${skillKey}/${subPath}";
               processed =
-                if subData ? sourcePath then
-                  {
-                    kind = "skillFile";
-                    outputPath = fullPath;
-                    sourcePath = subData.sourcePath;
-                    sourceDirectory = entry.directory;
-                    inherit skillKey;
-                  }
-                else if subData.kind == "nix" then
+                if subData.kind == "nix" then
                   self.scopeApi.mkSkillFile {
                     inherit (self) harness;
                     key = fullPath;
@@ -243,7 +235,7 @@ let
               name = fullPath;
               value = processed;
             }
-          ) entry.files
+          ) (entry.files or { })
         ) (filterSkillsForHarness self self.rawSkills)
       )
     );
@@ -498,7 +490,9 @@ let
     else
       value;
 
-  # Directory skills are opaque source trees; companion Nix files are never imported.
+  # Directory skills ship an opaque source tree: evaluation uses only the
+  # declared path string; the tree is copied at build time and never read at
+  # eval.
   normalizeDirectorySkill =
     key: entry:
     let
@@ -509,50 +503,18 @@ let
           "when"
         ]
       );
-      directoryFiles = readSkillDirectory key entry.directory;
     in
     if unsupported != [ ] then
       throw "Nixantic directory skill '${key}' cannot set ${builtins.concatStringsSep ", " unsupported}; use directory with optional harnesses and when"
     else
       {
         inherit (entry) directory;
-        inherit directoryFiles;
-        main = {
-          file = "${entry.directory}/SKILL.md";
-        }
-        // builtins.intersectAttrs {
+        # Selectors only; the source tree is forwarded as sourceDirectory in stage 2.
+        main = builtins.intersectAttrs {
           harnesses = null;
           when = null;
         } entry;
-        files = lib.genAttrs (builtins.filter (path: path != "SKILL.md") directoryFiles) (path: {
-          sourcePath = "${entry.directory}/${path}";
-        });
       };
-
-  readSkillDirectory =
-    key: directory:
-    let
-      root = builtins.readDir directory;
-      walk =
-        prefix: entries:
-        lib.concatMap (
-          name:
-          let
-            path = if prefix == "" then name else "${prefix}/${name}";
-            type = entries.${name};
-          in
-          if type == "regular" then
-            [ path ]
-          else if type == "directory" then
-            walk path (builtins.readDir "${directory}/${path}")
-          else
-            throw "Nixantic directory skill '${key}' contains unsupported ${type} at '${path}'; only regular files and directories are supported"
-        ) (builtins.attrNames entries);
-    in
-    if (root."SKILL.md" or null) != "regular" then
-      throw "Nixantic directory skill '${key}' requires a regular SKILL.md at its root"
-    else
-      walk "" root;
 
   emptySources = {
     blocks = { };

@@ -154,10 +154,29 @@ let
         );
 
       allFiles = lib.unique (map (entry: entry.file) fileEntries);
+      # A directory skill copies an opaque tree at build time, so no other
+      # declared skill key may nest under a directory skill key (e.g. directory
+      # skill "a" plus skill "a/b"): both destination guards would pass and the
+      # clash would surface only as an opaque symlinkJoin error inside the copy.
+      nestedSkillKeys = lib.concatLists (
+        map (
+          scope:
+          let
+            skills = scope.skills or { };
+            dirKeys = builtins.filter (key: skills.${key} ? sourceDirectory) (builtins.attrNames skills);
+          in
+          builtins.filter (key: builtins.any (dirKey: lib.hasPrefix "${dirKey}/" key) dirKeys) (
+            builtins.attrNames skills
+          )
+        ) (builtins.attrValues scopes)
+      );
     in
     assert
       duplicateDestinations == [ ]
       || throw "Multiple nixantic files resolve to the same destination: ${builtins.concatStringsSep ", " duplicateDestinations}";
+    assert
+      nestedSkillKeys == [ ]
+      || throw "Nixantic skill keys may not nest under a directory skill key: ${builtins.concatStringsSep ", " nestedSkillKeys}";
     pkgs.symlinkJoin {
       name = "nixantic-instructions";
       paths = allFiles;

@@ -202,11 +202,15 @@ let
   #     content      - Body text, placed after frontmatter.
   #     description  - Frontmatter description.
   #
-  #   File-backed skills (directory skills only)
-  #     file         - Path to an authored SKILL.md, alternative to content. The file
-  #                    is rendered verbatim: its own frontmatter is kept and neither
-  #                    post-processing nor frontmatter synthesis applies. description
-  #                    becomes optional because the file carries it.
+  #   Source-backed skills (directory skills only; alternatives to content)
+  #     file            - Path to an authored SKILL.md, read at eval time and rendered
+  #                       verbatim: its own frontmatter is kept and neither post-processing
+  #                       nor frontmatter synthesis applies. description becomes optional
+  #                       because the file carries it.
+  #     sourceDirectory - Path to a skill root; the tree ships verbatim and its content is
+  #                       read only at build time, so evaluation never realizes it (any
+  #                       derivation, including per-platform fetches, is safe). embed is a
+  #                       placeholder; content must be absent.
   #
   #   Optional (authored)
   #     name         - Display name. Defaults to directory name (skills) or
@@ -239,19 +243,28 @@ let
   #     kind         - "directory" (skill) or "flat" (command).
   #     outputPath   - Rendered file path.
   #
-  #   Returns: { embed, reference, outputPath }
+  #   Returns: { embed, reference, outputPath } plus sourceDirectory (path string)
+  #   for source-backed skills
   mkSkill =
     args:
     let
       kind = args.kind or "flat";
       model = args.model or null;
 
+      # A source-backed skill ships its tree verbatim; evaluation must not realize
+      # the source (it may be a per-platform fetch), so embed is a placeholder.
+      sourceDirectory = args.sourceDirectory or null;
       # A file-backed skill ships an authored SKILL.md verbatim: the file carries
       # its own frontmatter, so post-processing and frontmatter synthesis are skipped.
       file = args.file or null;
-      verbatim = file != null;
+      verbatim = file != null || sourceDirectory != null;
       content =
-        if file == null then
+        if sourceDirectory != null then
+          assert
+            kind == "directory"
+            || throw "Nixantic skill '${args.name}' can only use a sourceDirectory with directory skills";
+          ""
+        else if file == null then
           args.content
         else if args ? content then
           throw "Nixantic skill '${args.name}' must set either content or file, not both"
@@ -306,7 +319,8 @@ let
     }
     // {
       reference = mkReference (if kind == "directory" then "skill" else "command") args.name;
-    };
+    }
+    // lib.optionalAttrs (sourceDirectory != null) { sourceDirectory = toString sourceDirectory; };
 
   # mkSkillFile :: { content, outputPath?, ... }
   #   Sub-files within a skill directory.
@@ -562,7 +576,6 @@ let
       forHarness
       forSetting
       renderFrontmatter
-      pkgs
       lib
       ;
   };

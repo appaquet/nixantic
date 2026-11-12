@@ -38,45 +38,28 @@ let
       when = { scope }: scope.harness.name == "pi";
     }
   ) harnesses;
-  collision = builtins.tryEval (
-    (builders.mkPackage {
-      scopes.claude = builders.makeScope {
-        harness = harnesses.claude;
-        sources = {
-          skills.external = { inherit directory; };
-          instructions.collision = {
-            content = "Conflicting asset";
-            outputPath = "skills/external/data.json";
-          };
-        };
-      };
-    }).drvPath
-  );
+  # A source that fails to build: if evaluation ever reads it, the cases below throw.
+  lazySource = pkgs.runCommand "lazy-eval-proof" { } "exit 1";
   cases = [
     {
-      name = "directory main retains its bytes and key-based reference";
+      name = "placeholder embed keeps key-based reference and output shape";
       pass = lib.all (
         scope:
-        scope.skills.external.embed == builtins.readFile (directory + "/SKILL.md")
+        scope.skills.external.embed == ""
         && scope.skills.external.reference == "the `external` skill"
         && scope.skills.external.outputPath == "skills/external/SKILL.md"
       ) (builtins.attrValues scopes);
     }
     {
-      name = "companions are inventoried without importing Nix or reading binary strings";
-      pass = lib.all (
-        scope:
-        builtins.attrNames scope.skillFiles
-        == map (name: "skills/external/${name}") (builtins.tail inventory)
-      ) (builtins.attrValues scopes);
+      name = "directory skills contribute no skillFiles to the scope";
+      pass = lib.all (scope: scope.skillFiles == { }) (builtins.attrValues scopes);
     }
     {
       name = "selectors include or exclude the entire directory";
       pass = lib.all (
         name:
         builtins.attrNames filtered.${name}.skills == (if name == "pi" then [ "external" ] else [ ])
-        &&
-          builtins.length (builtins.attrNames filtered.${name}.skillFiles) == (if name == "pi" then 5 else 0)
+        && builtins.attrNames filtered.${name}.skillFiles == [ ]
       ) (builtins.attrNames harnesses);
     }
     {
@@ -100,16 +83,43 @@ let
         };
     }
     {
-      name = "directory requires a regular root SKILL.md";
-      pass = rejected { directory = ./fixtures; };
+      name = "evaluation never reads a build-failing source";
+      pass =
+        (builtins.tryEval (
+          builtins.deepSeq (mkScope harnesses.claude { directory = lazySource; }).instructions true
+        )).success
+        && (builtins.tryEval (
+          builtins.deepSeq
+            (builders.mkPackage {
+              scopes = {
+                claude = mkScope harnesses.claude { directory = lazySource; };
+              };
+              postProcess = true;
+            }).drvPath
+            true
+        )).success;
     }
     {
-      name = "symlink companions are rejected instead of followed";
-      pass = rejected { directory = ./fixtures/directory-skill-link; };
-    }
-    {
-      name = "directory assets participate in destination collision checks";
-      pass = !collision.success;
+      name = "nested skill keys under a directory skill fail evaluation";
+      pass =
+        !(builtins.tryEval (
+          builtins.deepSeq
+            (builders.mkPackage {
+              scopes = {
+                claude = builders.makeScope {
+                  harness = harnesses.claude;
+                  sources.skills = {
+                    a = { inherit directory; };
+                    "a/b" = {
+                      main.content = "Nested";
+                    };
+                  };
+                };
+              };
+              postProcess = true;
+            }).drvPath
+            true
+        )).success;
     }
   ];
   checkCase = case: if case.pass then true else throw "FAIL [${case.name}]";
