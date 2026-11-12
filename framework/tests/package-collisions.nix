@@ -3,7 +3,9 @@
 /*
   Output package assembly tests — exercise the destination-uniqueness guard in
   output.nix mkPackage, which catches two files resolving to the same harness
-  destination before symlinkJoin reports an opaque clash.
+  destination before symlinkJoin reports an opaque clash, and the directory
+  skill prefix guard, which catches any file resolving into a directory
+  skill's opaque skills/<key>/ subtree.
 */
 
 let
@@ -13,10 +15,12 @@ let
     {
       instructions,
       skillFiles ? { },
+      skills ? { },
+      harnessOutputDir ? "claude",
     }:
     {
-      harness.outputDir = "claude";
-      inherit instructions skillFiles;
+      harness.outputDir = harnessOutputDir;
+      inherit instructions skillFiles skills;
     };
 
   uniqueResult = builtins.tryEval (
@@ -60,6 +64,28 @@ let
       };
     }).drvPath
   );
+  # Codex commands render into skills/<name>/SKILL.md, so a slash key that lands
+  # under a directory skill's subtree must fail the prefix guard, not just the
+  # exact-destination guard.
+  prefixCollidingResult = builtins.tryEval (
+    (output.mkPackage {
+      scopes.codex = mkScope {
+        harnessOutputDir = "codex";
+        instructions = {
+          "external/sub" = {
+            kind = "command";
+            embed = "Command rendered as a codex skill";
+            outputPath = "skills/external/sub/SKILL.md";
+          };
+        };
+        skills = {
+          external = {
+            sourceDirectory = toString ./fixtures/directory-skill;
+          };
+        };
+      };
+    }).drvPath
+  );
 
   cases = [
     {
@@ -71,6 +97,11 @@ let
       name = "duplicate destination fails before symlinkJoin";
       pass = !collidingResult.success;
       detail = "expected a sub-file colliding with a skill main file to fail with a destination collision";
+    }
+    {
+      name = "codex command inside a directory skill subtree fails";
+      pass = !prefixCollidingResult.success;
+      detail = "expected a slash-key command rendered under a directory skill's skills/<key>/ subtree to fail with a prefix collision";
     }
   ];
 

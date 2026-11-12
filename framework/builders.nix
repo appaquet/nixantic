@@ -320,7 +320,12 @@ let
     // {
       reference = mkReference (if kind == "directory" then "skill" else "command") args.name;
     }
-    // lib.optionalAttrs (sourceDirectory != null) { sourceDirectory = toString sourceDirectory; };
+    // lib.optionalAttrs (sourceDirectory != null) {
+      # Interpolate instead of toString: toString drops the string context of
+      # store paths (flake source copies), which would leave the build-time copy
+      # without its input inside a sandboxed build.
+      sourceDirectory = "${sourceDirectory}";
+    };
 
   # mkSkillFile :: { content, outputPath?, ... }
   #   Sub-files within a skill directory.

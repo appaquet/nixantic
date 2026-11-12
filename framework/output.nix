@@ -154,10 +154,10 @@ let
         );
 
       allFiles = lib.unique (map (entry: entry.file) fileEntries);
-      # A directory skill copies an opaque tree at build time, so no other
-      # declared skill key may nest under a directory skill key (e.g. directory
-      # skill "a" plus skill "a/b"): both destination guards would pass and the
-      # clash would surface only as an opaque symlinkJoin error inside the copy.
+      # A directory skill copies an opaque tree at build time, so no other declared
+      # skill key may nest under a directory skill key (e.g. directory skill "a" plus
+      # skill "a/b"): both destination guards would pass and the clash would surface
+      # only as an opaque symlinkJoin error inside the copy.
       nestedSkillKeys = lib.concatLists (
         map (
           scope:
@@ -170,6 +170,41 @@ let
           )
         ) (builtins.attrValues scopes)
       );
+      # A directory skill's opaque copy owns the whole skills/<key>/ subtree, so no
+      # entry without a sourcePath (authored files, skill files, harness root files,
+      # and codex commands, which render into skills/<name>/SKILL.md) may resolve
+      # inside it: the file would be hidden inside the copy with no collision error.
+      dirSkillPrefixes = lib.concatLists (
+        map (
+          scope:
+          let
+            skills = scope.skills or { };
+            harnessDir = scope.harness.outputDir;
+            dirKeys = builtins.filter (key: skills.${key} ? sourceDirectory) (builtins.attrNames skills);
+          in
+          map (key: {
+            inherit harnessDir key;
+            prefix = "${harnessDir}/skills/${key}/";
+          }) dirKeys
+        ) (builtins.attrValues scopes)
+      );
+      prefixGuardOffenders = lib.unique (
+        lib.concatLists (
+          map (
+            entry:
+            let
+              hits =
+                if entry ? sourcePath then
+                  [ ]
+                else
+                  lib.filter (
+                    prefix: entry.harnessDir == prefix.harnessDir && lib.hasPrefix prefix.prefix entry.destination
+                  ) dirSkillPrefixes;
+            in
+            map (prefix: "${entry.destination} (under directory skill '${prefix.key}')") hits
+          ) fileEntries
+        )
+      );
     in
     assert
       duplicateDestinations == [ ]
@@ -177,18 +212,38 @@ let
     assert
       nestedSkillKeys == [ ]
       || throw "Nixantic skill keys may not nest under a directory skill key: ${builtins.concatStringsSep ", " nestedSkillKeys}";
+    assert
+      prefixGuardOffenders == [ ]
+      || throw (
+        "A nixantic file resolves into a directory skill's opaque subtree: "
+        + builtins.concatStringsSep "; " prefixGuardOffenders
+      );
     pkgs.symlinkJoin {
       name = "nixantic-instructions";
       paths = allFiles;
     };
 
   # A shared source tree keeps executable assets and sibling-relative lookups intact.
+  # The tree is opaque at eval time, so the SKILL.md and no-symlink contract is
+  # enforced here, at build time, when the source is first realized.
   mkSkillDirectory =
     harnessDir: skillKey: sourceDirectory:
     pkgs.runCommand (builtins.replaceStrings [ "/" ] [ "-" ] "${harnessDir}-skill-${skillKey}") { } ''
       destination="$out"/${lib.escapeShellArg "${harnessDir}/skills/${skillKey}"}
       mkdir -p "$destination"
       cp -R ${lib.escapeShellArg "${sourceDirectory}/."} "$destination/"
+      if [ -L "$destination/SKILL.md" ]; then
+        echo "Nixantic skill '${lib.escapeShellArg skillKey}': SKILL.md must be a regular file, not a symlink" >&2
+        exit 1
+      fi
+      if [ ! -f "$destination/SKILL.md" ]; then
+        echo "Nixantic skill '${lib.escapeShellArg skillKey}': missing a regular SKILL.md at the skill root" >&2
+        exit 1
+      fi
+      if [ -n "$(find "$destination" -type l -print -quit)" ]; then
+        echo "Nixantic skill '${lib.escapeShellArg skillKey}': the source tree must not contain symlinks" >&2
+        exit 1
+      fi
     '';
 
 in
